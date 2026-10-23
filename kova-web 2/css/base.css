@@ -1,0 +1,233 @@
+/*
+ * SISTEMA VISUAL DE KOVA (traducción web del Manual de marca)
+ *
+ * Paleta (3.3): Azul marino #00001F (principal) · Arena #F0E7DE (neutro) · Escarlata #D21625 (acento).
+ * El blanco solo aparece en el logotipo y en texto sobre botones escarlata (contraste).
+ * Las superficies alternan azul marino y arena, como las páginas del manual,
+ * y llevan su retícula de líneas finas.
+ */
+:root {
+  --navy: #00001f;
+  --arena: #f0e7de;
+  --scarlet: #d21625;
+  --scarlet-deep: #ad0f1c;   /* escarlata en estado presionado/hover */
+  --white: #ffffff;
+
+  /* Superficie por defecto: azul marino (cada .s-arena la invierte). */
+  --bg: var(--navy);
+  --fg: var(--arena);
+  --muted: rgb(240 231 222 / .7);
+  --line: rgb(240 231 222 / .16);
+  --line-strong: rgb(240 231 222 / .55);
+  --ghost: rgb(240 231 222 / .5);   /* números de capítulo, como en el manual */
+
+  --f-display: 'Kova Display', 'Anton', Impact, 'Arial Narrow', sans-serif;
+  --f-body: 'Kova Body', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --container: 1400px;
+  --gutter: clamp(16px, 4vw, 56px);
+  --cols: 9;                         /* el manual usa una retícula de 9 columnas */
+  --row: clamp(72px, 7vw, 104px);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --header-h: 118px;
+}
+@media (max-width: 960px) { :root { --cols: 6; } }
+@media (max-width: 600px) { :root { --cols: 4; } }
+
+.s-navy { --bg: var(--navy); --fg: var(--arena); --muted: rgb(240 231 222 / .7); --line: rgb(240 231 222 / .16); --line-strong: rgb(240 231 222 / .55); --ghost: rgb(240 231 222 / .5); }
+.s-arena { --bg: var(--arena); --fg: var(--navy); --muted: rgb(0 0 31 / .7); --line: rgb(0 0 31 / .14); --line-strong: rgb(0 0 31 / .6); --ghost: rgb(0 0 31 / .22); }
+.s-navy, .s-arena { background-color: var(--bg); color: var(--fg); }
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--navy);
+  color: var(--arena);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+body.no-scroll { overflow: hidden; }
+img, svg { display: block; max-width: 100%; }
+img { height: auto; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+ul { list-style: none; padding: 0; }
+:focus-visible { outline: 2px solid var(--scarlet); outline-offset: 3px; }
+::selection { background: var(--scarlet); color: var(--white); }
+
+/* Anton: titulares, destacados y subtítulos (3.1). Siempre en mayúsculas y compacta. */
+h1, h2, h3, .display { font-family: var(--f-display); font-weight: 400; line-height: .92; text-transform: uppercase; letter-spacing: .005em; }
+/* El punto escarlata cierra los titulares, como en la pieza "YA CASI NOS VES." */
+.dot { color: var(--scarlet); }
+
+.container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+
+/* Retícula del manual: líneas finas en 9 columnas (6 en tablet, 4 en móvil). */
+.grid-lines {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: calc(100% / var(--cols)) var(--row);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Etiqueta pequeña con punto escarlata (del afiche de lanzamiento). */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+.eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--scarlet); flex: none; }
+
+/* ---------- Íconos de marca (3.5) ----------
+ * Archivos extraídos tal cual del manual; se colorean con currentColor. */
+.ico {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
+}
+.ico--destellos { -webkit-mask-image: url('../assets/brand/icons/destellos.svg'); mask-image: url('../assets/brand/icons/destellos.svg'); }
+.ico--destello-doble { -webkit-mask-image: url('../assets/brand/icons/destello-doble.svg'); mask-image: url('../assets/brand/icons/destello-doble.svg'); }
+.ico--estrella { -webkit-mask-image: url('../assets/brand/icons/estrella-8.svg'); mask-image: url('../assets/brand/icons/estrella-8.svg'); }
+.ico--espiral { -webkit-mask-image: url('../assets/brand/icons/espiral.svg'); mask-image: url('../assets/brand/icons/espiral.svg'); }
+.ico--globo { -webkit-mask-image: url('../assets/brand/icons/globo.svg'); mask-image: url('../assets/brand/icons/globo.svg'); }
+.ico--orbita { -webkit-mask-image: url('../assets/brand/icons/orbita.svg'); mask-image: url('../assets/brand/icons/orbita.svg'); }
+.ico--orbita-linea { -webkit-mask-image: url('../assets/brand/icons/orbita-linea.svg'); mask-image: url('../assets/brand/icons/orbita-linea.svg'); }
+.ico--conector-1 { -webkit-mask-image: url('../assets/brand/icons/conector-1.svg'); mask-image: url('../assets/brand/icons/conector-1.svg'); }
+.ico--conector-2 { -webkit-mask-image: url('../assets/brand/icons/conector-2.svg'); mask-image: url('../assets/brand/icons/conector-2.svg'); }
+.ico--conector-3 { -webkit-mask-image: url('../assets/brand/icons/conector-3.svg'); mask-image: url('../assets/brand/icons/conector-3.svg'); }
+.ico--conector-4 { -webkit-mask-image: url('../assets/brand/icons/conector-4.svg'); mask-image: url('../assets/brand/icons/conector-4.svg'); }
+.ico--ala-izq { -webkit-mask-image: url('../assets/brand/icons/ala-izq.svg'); mask-image: url('../assets/brand/icons/ala-izq.svg'); }
+.ico--ala-der { -webkit-mask-image: url('../assets/brand/icons/ala-der.svg'); mask-image: url('../assets/brand/icons/ala-der.svg'); }
+.ico--wide { width: 3.1em; }
+
+/* Destello que titila suavemente (eco de los destellos del logotipo). */
+.twinkle { animation: twinkle 3.6s var(--ease) infinite; }
+.twinkle--late { animation-delay: 1.4s; }
+@keyframes twinkle { 0%, 70%, 100% { transform: scale(1) rotate(0); opacity: 1; } 80% { transform: scale(.6) rotate(45deg); opacity: .5; } }
+
+.skip { position: absolute; left: -999px; top: 8px; z-index: 200; background: var(--scarlet); color: var(--white); padding: 8px 12px; }
+.skip:focus { left: 8px; }
+.noscript { padding: 40px var(--gutter); text-align: center; }
+
+/* ---------- Botones ----------
+ * Anton en mayúsculas, esquinas rectas como las piezas del manual.
+ * Primario escarlata (acento de compra), claro arena sobre marino y de línea. */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7em;
+  min-height: 52px;
+  padding: 12px 26px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1.5px solid var(--btn-line, var(--fg));
+  background: var(--btn-bg, transparent);
+  color: var(--btn-fg, var(--fg));
+  font-family: var(--f-display);
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color .3s var(--ease), border-color .3s var(--ease), transform .15s var(--ease);
+}
+/* Relleno que entra desde la izquierda al pasar el cursor. */
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--btn-hover-bg, var(--fg));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .4s var(--ease-out);
+}
+.btn:hover::before { transform: scaleX(1); }
+.btn:hover { color: var(--btn-hover-fg, var(--bg)); border-color: var(--btn-hover-bg, var(--fg)); }
+.btn:active { transform: scale(.97); }
+.btn .ico { font-size: 1.05em; transition: transform .5s var(--ease-out); }
+.btn:hover .ico--destellos, .btn:hover .ico--estrella { transform: rotate(90deg) scale(1.15); }
+.btn__arrow { font-family: var(--f-body); font-weight: 500; transition: transform .3s var(--ease); }
+.btn:hover .btn__arrow { transform: translateX(4px); }
+
+.btn--primary { --btn-bg: var(--scarlet); --btn-fg: var(--white); --btn-line: var(--scarlet); --btn-hover-bg: var(--scarlet-deep); --btn-hover-fg: var(--white); }
+.btn--light { --btn-bg: var(--fg); --btn-fg: var(--bg); --btn-line: var(--fg); --btn-hover-bg: var(--scarlet); --btn-hover-fg: var(--white); }
+.btn--line { --btn-hover-bg: var(--fg); }
+.btn--sm { min-height: 42px; padding: 8px 18px; font-size: 16px; }
+.btn--xl { min-height: 64px; padding-inline: 34px; font-size: 22px; }
+.btn--block { width: 100%; }
+.btn[disabled] { opacity: .5; pointer-events: none; }
+
+/* ---------- Etiquetas (tags y estados) ---------- */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 4px;
+  font-family: var(--f-display);
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: var(--scarlet);
+  color: var(--white);
+}
+.tag--navy { background: var(--navy); color: var(--arena); }
+.tag--out { background: var(--arena); color: var(--navy); box-shadow: inset 0 0 0 1.5px var(--navy); }
+
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+.status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.status--on::before { background: var(--fg); box-shadow: 0 0 0 4px var(--line); animation: pulse 2.4s ease-in-out infinite; }
+.status--off::before { background: var(--scarlet); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 7px transparent; } }
+
+/* ---------- Aviso breve ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 14px 20px;
+  background: var(--arena);
+  color: var(--navy);
+  border-left: 4px solid var(--scarlet);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 40px rgb(0 0 31 / .45);
+  transform: translate(-50%, 160%);
+  transition: transform .45s var(--ease-out);
+}
+.toast .ico { color: var(--scarlet); font-size: 18px; }
+.toast.is-visible { transform: translate(-50%, 0); }
+
+/* ---------- Aparición suave al hacer scroll ---------- */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s var(--ease-out), transform .8s var(--ease-out); transition-delay: calc(var(--i, 0) * 70ms); }
+.reveal.is-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
+  .reveal { opacity: 1; transform: none; }
+}

@@ -1,0 +1,26 @@
+/*
+ * TIPOGRAFÍAS CORPORATIVAS (Manual de marca 3.1 y 3.2)
+ *   Anton Regular → 'Kova Display': titulares, destacados y subtítulos.
+ *   Satoshi       → 'Kova Body':    cuerpos de texto y descripciones (variable, pesos 300–900).
+ * Anton se distribuye con licencia SIL OFL (ver assets/fonts/Anton-OFL.txt).
+ * Para cambiar una tipografía, reemplaza el archivo en assets/fonts/ con el mismo nombre.
+ */
+@font-face {
+  font-family: 'Kova Display';
+  src: url('../assets/fonts/kova-display.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Kova Body';
+  src: url('../assets/fonts/kova-body.woff2') format('woff2');
+  font-weight: 300 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Kova Body';
+  src: url('../assets/fonts/kova-body-italic.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: swap;
+}
