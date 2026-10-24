@@ -30,6 +30,26 @@ export const CONFIG = {
   // Correo para consultas generales y colaboraciones. NO recibe pedidos: los pedidos van por Instagram.
   contactEmail: 'kova.oficial.115@gmail.com',
 
+  // Métodos de pago que el comprador elige al finalizar. El pago se hace por fuera de la web
+  // (app de Nequi o de su banco) y el comprobante se comparte en el chat de Instagram.
+  payments: [
+    {
+      id: 'nequi',
+      label: 'Nequi',
+      detail: 'Código QR',
+      qr: 'assets/pagos/nequi-qr.png',
+      holder: 'Kova · Juan Machado',
+      hint: 'Escanéalo desde la app de Nequi o de tu banco.',
+    },
+    {
+      id: 'banco-bogota',
+      label: 'Banco de Bogotá',
+      detail: 'Llave',
+      key: '1107849275',
+      hint: 'Transfiere a esta llave desde la app de tu banco.',
+    },
+  ],
+
   cart: {
     // Clave del carrito en localStorage (solo productos, tallas y cantidades; nunca datos personales).
     storageKey: 'kova.cart.v1',

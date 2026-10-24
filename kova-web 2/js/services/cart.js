@@ -128,19 +128,22 @@ export const clearCart = () => commit([]);
 
 /* ---------- Datos del comprador (solo durante la sesión de la pestaña) ---------- */
 export function getBuyer() {
-  try { return { name: '', phone: '', ...JSON.parse(sessionStorage.getItem(BUYER_KEY) || '{}') }; } catch { return { name: '', phone: '' }; }
+  try { return { name: '', phone: '', payment: '', ...JSON.parse(sessionStorage.getItem(BUYER_KEY) || '{}') }; } catch { return { name: '', phone: '', payment: '' }; }
 }
 export function setBuyer(patch) {
   const next = { ...getBuyer(), ...patch };
-  try { sessionStorage.setItem(BUYER_KEY, JSON.stringify({ name: next.name, phone: next.phone })); } catch { /* sin almacenamiento */ }
+  try { sessionStorage.setItem(BUYER_KEY, JSON.stringify({ name: next.name, phone: next.phone, payment: next.payment })); } catch { /* sin almacenamiento */ }
   return next;
 }
 export function clearBuyer() {
   try { sessionStorage.removeItem(BUYER_KEY); } catch { /* sin almacenamiento */ }
 }
 
-/** Valida nombre y teléfono. Devuelve { ok, errors: { name?, phone? }, buyer }. */
-export function validateBuyer({ name = '', phone = '' }) {
+/** Método de pago elegido (de CONFIG.payments), o undefined. */
+export const getPayment = (id) => CONFIG.payments.find((p) => p.id === id);
+
+/** Valida nombre, teléfono y método de pago. Devuelve { ok, errors: { name?, phone?, payment? }, buyer }. */
+export function validateBuyer({ name = '', phone = '', payment = '' }) {
   const cleanName = name.trim().replace(/\s+/g, ' ');
   const digits = phone.replace(/[\s().-]/g, '');
   const errors = {};
@@ -148,7 +151,8 @@ export function validateBuyer({ name = '', phone = '' }) {
   else if (cleanName.split(' ').filter((w) => w.length >= 2).length < 2 || /[\d@]/.test(cleanName)) errors.name = 'Escribe tu nombre y apellido.';
   if (!digits) errors.phone = 'Escribe un número de contacto.';
   else if (!/^\+?\d{7,15}$/.test(digits)) errors.phone = 'Escribe un teléfono válido: solo números, entre 7 y 15 dígitos.';
-  return { ok: !Object.keys(errors).length, errors, buyer: { name: cleanName, phone: phone.trim() } };
+  if (!getPayment(payment)) errors.payment = 'Elige un método de pago.';
+  return { ok: !Object.keys(errors).length, errors, buyer: { name: cleanName, phone: phone.trim(), payment: getPayment(payment) } };
 }
 
 // Otra pestaña cambió el carrito: se recarga para que todo coincida.

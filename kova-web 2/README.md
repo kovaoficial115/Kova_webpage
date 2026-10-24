@@ -60,6 +60,8 @@ llevar al perfil, cambia `contactUrl` en `js/config.js`.
   del catálogo). Nombre y teléfono del comprador solo se guardan en la pestaña (`sessionStorage`).
 - **Finalizar compra** valida nombre y teléfono, copia el mensaje del pedido y abre `contactUrl`
   (`js/config.js`). Si la copia falla, el aviso muestra el mensaje para copiarlo a mano.
+- Métodos de pago (Nequi con QR y llave Banco de Bogotá): `CONFIG.payments` en `js/config.js`. El QR está en
+  `assets/pagos/nequi-qr.png`. El método elegido va en el mensaje y el aviso final muestra cómo pagar.
 - Máximo de unidades por variante: `CONFIG.cart.maxQtyPerItem`.
 - Correo para asuntos que no son pedidos: `CONFIG.contactEmail` (aparece en el pie).
 

@@ -4,7 +4,7 @@
  * Todas leen y escriben el mismo estado (services/cart.js).
  */
 import { CONFIG } from '../config.js';
-import { getCart, changeQty, removeItem, clearCart, getBuyer, setBuyer, clearBuyer, validateBuyer } from '../services/cart.js';
+import { getCart, changeQty, removeItem, clearCart, getBuyer, setBuyer, clearBuyer, validateBuyer, getPayment } from '../services/cart.js';
 import { buildOrderMessage, copyText, startInstagramCheckout } from '../services/contact.js';
 import { productUrl } from './productCard.js';
 import { formatPrice, pad } from '../utils/format.js';
@@ -56,6 +56,35 @@ export const emptyHtml = ({ title = 'Tu carrito está vacío', cta = 'Ver catál
     <a class="btn btn--primary btn--block" href="index.html#catalogo" data-continue>${esc(cta)} <span class="btn__arrow" aria-hidden="true">→</span></a>
   </div>`;
 
+/** Datos para pagar con un método (QR de Nequi o llave bancaria). */
+export function paymentDetailHtml(p) {
+  if (!p) return '';
+  const body = p.qr
+    ? `<figure class="pay-detail__qr">
+         <img src="${esc(p.qr)}" alt="Código QR de ${esc(p.label)} para pagar a ${esc(p.holder ?? CONFIG.brand.name)}" width="200" height="200" loading="lazy">
+       </figure>
+       <div class="pay-detail__text">
+         ${p.holder ? `<strong>${esc(p.holder)}</strong>` : ''}
+         <span>${esc(p.hint ?? '')}</span>
+         <a class="pay-detail__link" href="${esc(p.qr)}" download="kova-${esc(p.id)}-qr.png">Guardar imagen del QR <span class="btn__arrow" aria-hidden="true">↓</span></a>
+       </div>`
+    : `<div class="pay-detail__text">
+         <span class="pay-detail__label">${esc(p.detail)} ${esc(p.label)}</span>
+         <strong class="pay-detail__key">${esc(p.key)}</strong>
+         <span>${esc(p.hint ?? '')}</span>
+         <button class="pay-detail__link" type="button" data-copy-key="${esc(p.key)}">Copiar llave</button>
+       </div>`;
+  return `<div class="pay-detail${p.qr ? ' pay-detail--qr' : ''}">${body}</div>`;
+}
+
+// Copiar la llave bancaria (en el formulario y en el aviso final).
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-copy-key]');
+  if (!btn) return;
+  const ok = await copyText(btn.dataset.copyKey);
+  toast(ok ? `Llave ${btn.dataset.copyKey} copiada.` : `No se pudo copiar. La llave es ${btn.dataset.copyKey}.`);
+});
+
 /** Formulario del comprador. `prefix` evita ids repetidos si hay más de un formulario en la página. */
 export const buyerFormHtml = (prefix) => `
   <form class="buyer" id="${prefix}-form" novalidate data-buyer>
@@ -72,10 +101,22 @@ export const buyerFormHtml = (prefix) => `
         placeholder="300 123 4567" aria-describedby="${prefix}-phone-error">
       <p class="field__error" id="${prefix}-phone-error"></p>
     </div>
+    <fieldset class="field pay" data-payment aria-describedby="${prefix}-payment-error">
+      <legend class="field__label">Método de pago <span aria-hidden="true">*</span></legend>
+      <div class="pay__options">
+        ${CONFIG.payments.map((p) => `
+          <label class="pay__option">
+            <input type="radio" name="payment" value="${esc(p.id)}" required>
+            <span><strong>${esc(p.label)}</strong><small>${esc(p.detail)}</small></span>
+          </label>`).join('')}
+      </div>
+      <p class="field__error" id="${prefix}-payment-error"></p>
+      <div data-payment-detail></div>
+    </fieldset>
     <p class="checkout-state" data-checkout-state aria-live="polite"></p>
   </form>`;
 
-const FIELD_NAMES = { name: 'nombre completo', phone: 'teléfono' };
+const FIELD_NAMES = { name: 'nombre completo', phone: 'teléfono', payment: 'método de pago' };
 
 /**
  * Conecta un contenedor con el carrito: botones de cantidad/eliminar, formulario y finalizar compra.
@@ -104,15 +145,21 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     const buyer = getBuyer();
     form.elements.name.value = buyer.name;
     form.elements.phone.value = buyer.phone;
+    form.querySelectorAll('[name="payment"]').forEach((r) => { r.checked = r.value === buyer.payment; });
+    showPaymentDetail();
+  };
+
+  const showPaymentDetail = () => {
+    form.querySelector('[data-payment-detail]').innerHTML = paymentDetailHtml(getPayment(getBuyer().payment));
   };
 
   const showErrors = (errors, fields) => {
     fields.forEach((f) => {
-      const input = form.elements[f];
+      const input = f === 'payment' ? form.querySelector('[data-payment]') : form.elements[f];
       const msg = errors[f] ?? '';
       input.setAttribute('aria-invalid', String(Boolean(msg)));
       input.closest('.field').classList.toggle('is-error', Boolean(msg));
-      form.querySelector(`#${input.id}-error`).textContent = msg;
+      form.querySelector(`#${input.getAttribute('aria-describedby')}`).textContent = msg;
     });
   };
 
@@ -128,7 +175,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     if (!cart.lines.length) { text = 'Agrega al menos una camiseta para finalizar.'; tone = 'off'; }
     else if (ok) { text = 'Pedido listo para finalizar por Instagram.'; tone = 'on'; }
     else if (submitted && visible.length) { text = `Falta completar: ${Object.keys(errors).map((f) => FIELD_NAMES[f]).join(' y ')}.`; tone = 'error'; }
-    else { text = 'Completa tu nombre y teléfono para finalizar.'; tone = 'off'; }
+    else { text = 'Completa tus datos y elige cómo pagar para finalizar.'; tone = 'off'; }
     state.textContent = text;
     state.className = `checkout-state status status--${tone === 'on' ? 'on' : 'off'}${tone === 'error' ? ' is-error' : ''}`;
   };
@@ -136,6 +183,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
   form.addEventListener('input', (e) => {
     if (!e.target.name) return;
     setBuyer({ [e.target.name]: e.target.value });
+    if (e.target.name === 'payment') { touched.add('payment'); showPaymentDetail(); }
     // Los errores solo aparecen en campos ya visitados; al corregirlos se actualizan en vivo.
     refresh();
   });
@@ -153,7 +201,8 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     refresh();
     if (!cart.lines.length) return toast('Tu carrito está vacío.');
     if (!ok) {
-      form.elements[Object.keys(errors)[0]].focus();
+      const first = Object.keys(errors)[0];
+      (first === 'payment' ? form.querySelector('[name="payment"]') : form.elements[first]).focus();
       return;
     }
     const message = buildOrderMessage(cart, buyer);
@@ -162,7 +211,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     const result = await startInstagramCheckout(message);
     submitters.forEach((b) => b.removeAttribute('aria-busy'));
     onCheckoutStart?.();
-    showCheckoutNotice({ message, ...result });
+    showCheckoutNotice({ message, payment: buyer.payment, ...result });
   });
 
   fill();
@@ -187,8 +236,9 @@ function createNotice() {
       <ol class="notice-steps">
         <li data-step-open></li>
         <li data-step-copy></li>
-        <li>Envía el mensaje. Kova te responderá para confirmar disponibilidad, pago y envío.</li>
+        <li>Envía el mensaje. Kova te confirmará disponibilidad y envío; después paga y comparte el comprobante en el chat.</li>
       </ol>
+      <div class="notice-pay" data-notice-pay></div>
       <p class="notice-warning"><i class="ico ico--destellos" aria-hidden="true"></i> Tu pedido aún no está enviado ni confirmado.</p>
 
       <div class="modal__message notice-message">
@@ -230,7 +280,7 @@ function createNotice() {
   return dialog;
 }
 
-export function showCheckoutNotice({ message, copied, opened }) {
+export function showCheckoutNotice({ message, payment, copied, opened }) {
   notice ??= createNotice();
   const handle = `@${CONFIG.instagram.handle}`;
   notice.querySelector('[data-step-open]').textContent = opened
@@ -240,6 +290,9 @@ export function showCheckoutNotice({ message, copied, opened }) {
     ? 'Copiamos tu pedido: pégalo en el chat de Instagram.'
     : 'No pudimos copiar el mensaje automáticamente: cópialo desde el recuadro de abajo y pégalo en el chat.';
   notice.classList.toggle('is-copy-failed', !copied);
+  notice.querySelector('[data-notice-pay]').innerHTML = payment
+    ? `<p class="modal__label">Cómo pagar: ${esc(payment.label)}</p>${paymentDetailHtml(payment)}`
+    : '';
   notice.querySelector('textarea').value = message;
   notice.querySelector('[data-copy]').textContent = copied ? 'Copiar de nuevo' : 'Copiar mensaje';
   if (!notice.open) notice.showModal();
