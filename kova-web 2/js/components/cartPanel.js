@@ -5,7 +5,7 @@
  * También mantiene al día todos los contadores [data-cart-count] (cabecera incluida).
  */
 import { subscribe } from '../services/cart.js';
-import { bindCart, linesHtml, summaryHtml, emptyHtml, buyerFormHtml, unitsLabel, renderList } from './cartView.js';
+import { bindCart, linesHtml, summaryHtml, emptyHtml, buyerFormHtml, copyHintHtml, unitsLabel, renderList } from './cartView.js';
 
 export const bagIcon = (cls = '') => `
   <svg class="bag ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -64,6 +64,7 @@ export function mountCart() {
       </div>
     </div>
     <div class="cart-panel__foot" data-filled>
+      ${copyHintHtml()}
       <button class="btn btn--primary btn--xl btn--block" type="submit" form="cart-panel-form">
         Finalizar compra <i class="ico ico--destellos" aria-hidden="true"></i>
       </button>

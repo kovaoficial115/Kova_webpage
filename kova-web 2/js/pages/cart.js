@@ -3,7 +3,7 @@
  * Usa el mismo estado que el panel flotante y la cabecera (services/cart.js).
  */
 import { subscribe } from '../services/cart.js';
-import { bindCart, linesHtml, summaryHtml, emptyHtml, buyerFormHtml, unitsLabel, renderList } from '../components/cartView.js';
+import { bindCart, linesHtml, summaryHtml, emptyHtml, buyerFormHtml, copyHintHtml, unitsLabel, renderList } from '../components/cartView.js';
 import { chapter } from '../components/chapter.js';
 import { mountLayout } from '../components/layout.js';
 
@@ -35,11 +35,12 @@ main.innerHTML = `
           <h2 class="cartpage__sumTitle" id="cart-summary-title">Resumen<span class="dot">.</span></h2>
           <div data-summary></div>
           ${buyerFormHtml('cart-page')}
+          ${copyHintHtml()}
           <button class="btn btn--primary btn--xl btn--block" type="submit" form="cart-page-form">
             Finalizar compra <i class="ico ico--destellos" aria-hidden="true"></i>
           </button>
           <a class="btn btn--line btn--block cartpage__continue" href="index.html#catalogo">Seguir comprando</a>
-          <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Al finalizar copiamos tu pedido y abrimos el chat de Instagram. Pago y envío se acuerdan por mensaje.</p>
+          <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Disponibilidad, envío y pago se confirman por mensaje directo con Kova.</p>
         </aside>
       </div>
     </div>

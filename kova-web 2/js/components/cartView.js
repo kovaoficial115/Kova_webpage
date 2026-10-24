@@ -85,6 +85,14 @@ document.addEventListener('click', async (e) => {
   toast(ok ? `Llave ${btn.dataset.copyKey} copiada.` : `No se pudo copiar. La llave es ${btn.dataset.copyKey}.`);
 });
 
+/** Aviso junto al botón de finalizar: deja claro que el pedido se copia al portapapeles. */
+export const copyHintHtml = () => `
+  <div class="copy-hint" role="note">
+    <span class="copy-hint__ico" aria-hidden="true"><span></span><span></span></span>
+    <p><strong>Al pulsar “Finalizar compra” tu pedido se copia automáticamente.</strong>
+    Se abrirá el chat de Instagram de @${esc(CONFIG.instagram.handle)}: solo pega el mensaje (mantén presionado › Pegar, o Ctrl/Cmd + V) y envíalo.</p>
+  </div>`;
+
 /** Formulario del comprador. `prefix` evita ids repetidos si hay más de un formulario en la página. */
 export const buyerFormHtml = (prefix) => `
   <form class="buyer" id="${prefix}-form" novalidate data-buyer>
