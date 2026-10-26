@@ -67,8 +67,8 @@ export const CONFIG = {
   // solo permite leer productos publicados; escribir exige iniciar sesión como administrador (ver README).
   // NUNCA pongas aquí la clave "service_role"/"secret".
   backend: {
-    supabaseUrl: '',                 // p. ej. 'https://abcdefgh.supabase.co'
-    supabaseAnonKey: '',             // p. ej. 'eyJhbGciOi...' o 'sb_publishable_...'
+    supabaseUrl: 'https://vfdpkmqncbhrauqtrnay.supabase.co',
+    supabaseAnonKey: 'sb_publishable_oBeBITx1TCiLsVvvK0kA1g_jTXeV6hW',
     table: 'products',
     bucket: 'product-images',
     timeoutMs: 6000,                 // si la base no responde a tiempo, se usa la última copia o products.js

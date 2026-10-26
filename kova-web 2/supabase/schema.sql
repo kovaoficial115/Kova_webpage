@@ -60,7 +60,7 @@ create table if not exists public.products (
 create index if not exists products_position_idx on public.products (position, created_at);
 
 create or replace function public.touch_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
   new.updated_at = now();
   return new;
