@@ -23,7 +23,7 @@ Añade una entrada en `js/data/categories.js` (con `cover` opcional para la imag
 ## Qué se cambia dónde
 | Qué | Dónde |
 |---|---|
-| Enlace de Instagram y mensaje predeterminado | `js/config.js` |
+| WhatsApp (pedidos), Instagram (contacto) y mensaje predeterminado | `js/config.js` |
 | Logo | `assets/brand/` + `CONFIG.brand.logo` en `js/config.js` |
 | Tipografías | `assets/fonts/` + `css/fonts.css` |
 | Colores y medidas | variables al inicio de `css/base.css` |
@@ -39,17 +39,17 @@ js/
   data/                       products.js, categories.js
   services/catalog.js         Único acceso a los datos (cambiar aquí si luego vienen de una API/CMS)
   services/cart.js            Estado único del carrito (localStorage) y validación del comprador
-  services/contact.js         Mensaje del pedido, copia al portapapeles y apertura del chat de Instagram
+  services/contact.js         Mensaje del pedido y apertura de WhatsApp con el texto ya escrito
   components/                 header, footer, productCard, contactModal, layout, cartPanel, cartView
   pages/                      home.js, product.js, cart.js
   utils/                      formato de precio, helpers del DOM
 assets/  brand · fonts · products
 ```
 
-## Instagram
-Instagram no permite prellenar un mensaje desde una URL pública. Por eso el botón copia el mensaje
-al portapapeles y abre `https://ig.me/m/kova.wear.co` (enlace oficial al chat directo). Si prefieres
-llevar al perfil, cambia `contactUrl` en `js/config.js`.
+## WhatsApp e Instagram
+Los pedidos llegan al WhatsApp Business de Kova (`CONFIG.whatsapp` en `js/config.js`). El botón abre
+`https://wa.me/573116983724?text=…` con el mensaje del pedido ya escrito; además lo copia al portapapeles
+como respaldo. Instagram (`CONFIG.instagram`) queda solo como canal de contacto.
 
 ## Carrito y compra
 - En la página de producto se elige la talla y se pulsa **Añadir al carrito**. Cada talla (y color, si el
@@ -58,8 +58,8 @@ llevar al perfil, cambia `contactUrl` en `js/config.js`.
   "Carrito" en la cabecera). Los tres usan el mismo estado (`js/services/cart.js`).
 - El carrito se guarda en `localStorage` (solo id, talla, color y cantidad; precios y nombres siempre salen
   del catálogo). Nombre y teléfono del comprador solo se guardan en la pestaña (`sessionStorage`).
-- **Finalizar compra** valida nombre y teléfono, copia el mensaje del pedido y abre `contactUrl`
-  (`js/config.js`). Si la copia falla, el aviso muestra el mensaje para copiarlo a mano.
+- **Finalizar compra** valida nombre, teléfono y método de pago, y abre WhatsApp con el pedido ya escrito.
+  El aviso final muestra el mensaje por si hay que copiarlo a mano.
 - Métodos de pago (Nequi con QR y llave Banco de Bogotá): `CONFIG.payments` en `js/config.js`. El QR está en
   `assets/pagos/nequi-qr.png`. El método elegido va en el mensaje y el aviso final muestra cómo pagar.
 - Máximo de unidades por variante: `CONFIG.cart.maxQtyPerItem`.

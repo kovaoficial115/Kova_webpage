@@ -19,7 +19,7 @@
  *   tag           (opcional) Etiqueta corta: 'NEW', 'DROP 01', 'LIMITED'...
  *   available     (opcional) false para marcarlo como agotado.
  *   sizes         (opcional) Tallas: ['S', 'M', 'L', 'XL']. Si existen, el cliente elige una
- *                 antes de escribir y la talla se agrega al mensaje de Instagram.
+ *                 antes de escribir y la talla se agrega al mensaje de WhatsApp.
  *   soldOutSizes  (opcional) Tallas agotadas: ['XL']. Se muestran tachadas y no se pueden elegir.
  *   details       (opcional) Lista corta de datos para la etiqueta del producto:
  *                 ['100% algodón', '220 g', 'Hecho en Colombia'].

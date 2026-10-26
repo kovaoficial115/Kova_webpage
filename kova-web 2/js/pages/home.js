@@ -137,14 +137,14 @@ function renderCatalog() {
 
 function renderSteps() {
   const steps = [
-    ['Elige', 'Abre la camiseta que te guste, elige tu talla y añádela al carrito.', 'destellos'],
-    ['Escríbenos', 'En el carrito escribe tu nombre y teléfono, pulsa “Finalizar compra” y envíanos el pedido por Instagram.', 'orbita'],
-    ['Recíbelo', 'Acordamos pago y envío directamente por mensaje.', 'globo'],
+    ['Elige', 'Escoge tu camiseta y tu talla, y añádela al carrito (desde el catálogo o la página del producto).', 'destellos'],
+    ['Pide', 'En el carrito escribe tu nombre y teléfono, elige cómo pagar (Nequi con QR o llave Banco de Bogotá) y pulsa “Finalizar compra”: se abre WhatsApp con tu pedido escrito, solo envíalo.', 'orbita'],
+    ['Paga y recíbelo', 'Te confirmamos disponibilidad y envío por WhatsApp. Pagas con el método elegido, nos compartes el comprobante y despachamos tu pedido.', 'globo'],
   ];
   return `
     <section class="section s-navy" id="como-comprar">
       <div class="container">
-        ${chapter({ num: nextChapter(), title: 'Cómo comprar', note: 'Arma tu carrito y envíanos el pedido por Instagram', folio: '03 pasos' })}
+        ${chapter({ num: nextChapter(), title: 'Cómo comprar', note: 'Carrito, pago con Nequi o Banco de Bogotá y pedido por WhatsApp', folio: '03 pasos' })}
         <ol class="steps">
           ${steps.map(([t, d, ico], i) => `
             <li class="step reveal" style="--i:${i}">
@@ -165,9 +165,9 @@ function renderContact() {
       <div class="container contact__inner reveal">
         <p class="eyebrow">Contacto</p>
         <h2 class="contact__title">¿Lo quieres?<br>Escríbenos<span class="dot">.</span></h2>
-        <p class="contact__lead">Todas las compras y preguntas se atienden por Instagram. Te respondemos directo, sin vueltas.</p>
+        <p class="contact__lead">Los pedidos y preguntas sobre compras se atienden por WhatsApp (${esc(CONFIG.whatsapp.display)}). También nos encuentras en Instagram. Te respondemos directo, sin vueltas.</p>
         <div class="contact__actions">
-          <a class="btn btn--primary btn--xl" href="${CONFIG.instagram.contactUrl}" target="_blank" rel="noopener">Escríbenos por Instagram <span class="btn__arrow" aria-hidden="true">↗</span></a>
+          <a class="btn btn--primary btn--xl" href="https://wa.me/${CONFIG.whatsapp.number}" target="_blank" rel="noopener">Escríbenos por WhatsApp <span class="btn__arrow" aria-hidden="true">↗</span></a>
           <a class="contact__handle" href="${CONFIG.instagram.profileUrl}" target="_blank" rel="noopener">@${esc(CONFIG.instagram.handle)}</a>
         </div>
       </div>

@@ -17,7 +17,7 @@ main.innerHTML = `
         <a href="index.html#catalogo">Catálogo</a><i class="ico ico--destellos" aria-hidden="true"></i>
         <span aria-current="page">Carrito</span>
       </nav>
-      ${chapter({ num: 'KV', title: 'Tu carrito', note: 'Revisa tu pedido antes de enviarlo por Instagram', folio: '00 unidades' })}
+      ${chapter({ num: 'KV', title: 'Tu carrito', note: 'Revisa tu pedido antes de enviarlo por WhatsApp', folio: '00 unidades' })}
 
       <div class="cartpage__empty grid-lines" data-empty hidden>${emptyHtml({ cta: 'Volver al catálogo' })}</div>
 
@@ -40,7 +40,7 @@ main.innerHTML = `
             Finalizar compra <i class="ico ico--destellos" aria-hidden="true"></i>
           </button>
           <a class="btn btn--line btn--block cartpage__continue" href="index.html#catalogo">Seguir comprando</a>
-          <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Disponibilidad, envío y pago se confirman por mensaje directo con Kova.</p>
+          <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Disponibilidad, envío y pago se confirman con Kova por WhatsApp.</p>
         </aside>
       </div>
     </div>

@@ -13,13 +13,16 @@ export const CONFIG = {
     mark: 'assets/brand/marca-responsive.svg',
   },
 
+  // WhatsApp Business: aquí llegan los pedidos. El enlace wa.me abre el chat con el mensaje ya escrito.
+  whatsapp: {
+    number: '573116983724',          // con indicativo de Colombia (57), sin + ni espacios
+    display: '+57 311 698 3724',
+  },
+
+  // Instagram: solo como canal de contacto (perfil y mensajes directos), no para pedidos.
   instagram: {
     handle: 'kova.wear.co',
     profileUrl: 'https://www.instagram.com/kova.wear.co/',
-    // Enlace oficial de Instagram que abre directamente el chat (DM) con la cuenta.
-    // Instagram NO permite prellenar el mensaje desde una URL pública, por eso
-    // el mensaje se copia al portapapeles antes de abrir el enlace.
-    // Si prefieres llevar al perfil, usa: contactUrl: 'https://www.instagram.com/kova.wear.co/'
     contactUrl: 'https://ig.me/m/kova.wear.co',
   },
 
@@ -27,11 +30,11 @@ export const CONFIG = {
   // {size} queda vacío si el producto no tiene tallas.
   contactMessage: 'Estoy interesado en este producto. {name}{size} ({price}) {url}',
 
-  // Correo para consultas generales y colaboraciones. NO recibe pedidos: los pedidos van por Instagram.
+  // Correo para consultas generales y colaboraciones. NO recibe pedidos: los pedidos van por WhatsApp.
   contactEmail: 'kova.oficial.115@gmail.com',
 
   // Métodos de pago que el comprador elige al finalizar. El pago se hace por fuera de la web
-  // (app de Nequi o de su banco) y el comprobante se comparte en el chat de Instagram.
+  // (app de Nequi o de su banco) y el comprobante se comparte en el chat de WhatsApp.
   payments: [
     {
       id: 'nequi',

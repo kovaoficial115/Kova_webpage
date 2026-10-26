@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
-import { buildContactMessage, copyContactMessage } from '../services/contact.js';
+import { buildContactMessage, whatsappUrl } from '../services/contact.js';
 import { formatPrice } from '../utils/format.js';
-import { esc, toast } from '../utils/dom.js';
+import { esc } from '../utils/dom.js';
 
 /**
  * Crea el modal de contacto para un producto y devuelve la función para abrirlo.
@@ -27,14 +27,14 @@ export function createContactModal(product) {
       </div>
 
       <div class="modal__message">
-        <span class="modal__label">Mensaje para Instagram</span>
+        <span class="modal__label">Mensaje para WhatsApp</span>
         <p data-message></p>
       </div>
 
-      <a class="btn btn--primary btn--xl btn--block modal__cta" href="${CONFIG.instagram.contactUrl}" target="_blank" rel="noopener">
-        Abrir Instagram <span class="btn__arrow" aria-hidden="true">↗</span>
+      <a class="btn btn--primary btn--xl btn--block modal__cta" href="${whatsappUrl()}" target="_blank" rel="noopener">
+        Abrir WhatsApp <span class="btn__arrow" aria-hidden="true">↗</span>
       </a>
-      <p class="modal__hint">Al pulsar, copiamos el mensaje: solo pégalo en el chat de @${esc(CONFIG.instagram.handle)}.</p>
+      <p class="modal__hint">Se abre el WhatsApp de Kova (${esc(CONFIG.whatsapp.display)}) con este mensaje ya escrito: solo envíalo.</p>
     </div>`;
   document.body.append(dialog);
 
@@ -46,14 +46,12 @@ export function createContactModal(product) {
   // Cerrar al hacer clic fuera del panel.
   dialog.addEventListener('click', (e) => e.target === dialog && close());
   dialog.addEventListener('close', () => document.body.classList.remove('no-scroll'));
-  dialog.querySelector('.modal__cta').addEventListener('click', async () => {
-    const copied = await copyContactMessage(product, size);
-    toast(copied ? 'Mensaje copiado. Pégalo en el chat de Instagram.' : 'Abriendo Instagram…');
-  });
 
   return (chosenSize = null) => {
     size = chosenSize;
-    dialog.querySelector('[data-message]').textContent = buildContactMessage(product, size);
+    const message = buildContactMessage(product, size);
+    dialog.querySelector('[data-message]').textContent = message;
+    dialog.querySelector('.modal__cta').href = whatsappUrl(message);
     dialog.querySelector('[data-size-label]').textContent = size ? `Talla ${size} · ` : '';
     dialog.showModal();
     document.body.classList.add('no-scroll');

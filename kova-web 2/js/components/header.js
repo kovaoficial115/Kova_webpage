@@ -3,7 +3,7 @@ import { esc } from '../utils/dom.js';
 import { bagIcon } from './cartPanel.js';
 
 const MARQUEE_ITEMS = [
-  'Compra directo por Instagram',
+  'Compra directo por WhatsApp',
   `@${CONFIG.instagram.handle}`,
   CONFIG.brand.tagline,
   'Drop 01 disponible',

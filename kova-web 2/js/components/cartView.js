@@ -5,7 +5,7 @@
  */
 import { CONFIG } from '../config.js';
 import { getCart, changeQty, removeItem, clearCart, getBuyer, setBuyer, clearBuyer, validateBuyer, getPayment } from '../services/cart.js';
-import { buildOrderMessage, copyText, startInstagramCheckout } from '../services/contact.js';
+import { buildOrderMessage, copyText, startWhatsAppCheckout, whatsappUrl } from '../services/contact.js';
 import { productUrl } from './productCard.js';
 import { formatPrice, pad } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
@@ -85,12 +85,12 @@ document.addEventListener('click', async (e) => {
   toast(ok ? `Llave ${btn.dataset.copyKey} copiada.` : `No se pudo copiar. La llave es ${btn.dataset.copyKey}.`);
 });
 
-/** Aviso junto al botón de finalizar: deja claro que el pedido se copia al portapapeles. */
+/** Aviso junto al botón de finalizar: deja claro qué pasa al pulsarlo. */
 export const copyHintHtml = () => `
   <div class="copy-hint" role="note">
     <span class="copy-hint__ico" aria-hidden="true"><span></span><span></span></span>
-    <p><strong>Al pulsar “Finalizar compra” tu pedido se copia automáticamente.</strong>
-    Se abrirá el chat de Instagram de @${esc(CONFIG.instagram.handle)}: solo pega el mensaje (mantén presionado › Pegar, o Ctrl/Cmd + V) y envíalo.</p>
+    <p><strong>Al pulsar “Finalizar compra” se abre WhatsApp con tu pedido ya escrito.</strong>
+    Llega al WhatsApp de Kova (${esc(CONFIG.whatsapp.display)}): solo revísalo y pulsa enviar. También lo copiamos, por si necesitas pegarlo.</p>
   </div>`;
 
 /** Formulario del comprador. `prefix` evita ids repetidos si hay más de un formulario en la página. */
@@ -181,7 +181,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     let text;
     let tone;
     if (!cart.lines.length) { text = 'Agrega al menos una camiseta para finalizar.'; tone = 'off'; }
-    else if (ok) { text = 'Pedido listo para finalizar por Instagram.'; tone = 'on'; }
+    else if (ok) { text = 'Pedido listo para enviar por WhatsApp.'; tone = 'on'; }
     else if (submitted && visible.length) { text = `Falta completar: ${Object.keys(errors).map((f) => FIELD_NAMES[f]).join(' y ')}.`; tone = 'error'; }
     else { text = 'Completa tus datos y elige cómo pagar para finalizar.'; tone = 'off'; }
     state.textContent = text;
@@ -216,7 +216,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     const message = buildOrderMessage(cart, buyer);
     const submitters = document.querySelectorAll(`[form="${form.id}"][type="submit"], #${form.id} [type="submit"]`);
     submitters.forEach((b) => b.setAttribute('aria-busy', 'true'));
-    const result = await startInstagramCheckout(message);
+    const result = await startWhatsAppCheckout(message);
     submitters.forEach((b) => b.removeAttribute('aria-busy'));
     onCheckoutStart?.();
     showCheckoutNotice({ message, payment: buyer.payment, ...result });
@@ -229,7 +229,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
 
 /* ---------- Aviso de compra iniciada ----------
  * Se reutiliza el diseño del modal de contacto. Nunca dice que el pedido se envió:
- * el cliente tiene que pegarlo y enviarlo en Instagram. */
+ * el cliente tiene que pulsar enviar en WhatsApp. */
 let notice;
 
 function createNotice() {
@@ -244,7 +244,7 @@ function createNotice() {
       <ol class="notice-steps">
         <li data-step-open></li>
         <li data-step-copy></li>
-        <li>Envía el mensaje. Kova te confirmará disponibilidad y envío; después paga y comparte el comprobante en el chat.</li>
+        <li>Kova te confirmará disponibilidad y envío por WhatsApp; después paga y comparte el comprobante en el chat.</li>
       </ol>
       <div class="notice-pay" data-notice-pay></div>
       <p class="notice-warning"><i class="ico ico--destellos" aria-hidden="true"></i> Tu pedido aún no está enviado ni confirmado.</p>
@@ -255,8 +255,8 @@ function createNotice() {
         <button class="btn btn--line btn--sm btn--block" type="button" data-copy>Copiar mensaje</button>
       </div>
 
-      <a class="btn btn--primary btn--xl btn--block modal__cta" href="${CONFIG.instagram.contactUrl}" target="_blank" rel="noopener" data-open>
-        Ir al chat de Instagram <span class="btn__arrow" aria-hidden="true">↗</span>
+      <a class="btn btn--primary btn--xl btn--block modal__cta" href="${whatsappUrl()}" target="_blank" rel="noopener" data-open>
+        Abrir WhatsApp con mi pedido <span class="btn__arrow" aria-hidden="true">↗</span>
       </a>
       <button class="notice-clear" type="button" data-clear>Ya envié mi pedido: vaciar carrito</button>
     </div>`;
@@ -276,9 +276,8 @@ function createNotice() {
     const ok = await copyText(area.value);
     if (!ok) { area.focus(); area.select(); }
     e.currentTarget.textContent = ok ? 'Mensaje copiado' : 'Selecciona el texto y cópialo';
-    toast(ok ? 'Mensaje copiado. Pégalo en el chat de Instagram.' : 'No se pudo copiar: selecciona el texto y cópialo.');
+    toast(ok ? 'Mensaje copiado. Pégalo en el chat de WhatsApp.' : 'No se pudo copiar: selecciona el texto y cópialo.');
   });
-  dialog.querySelector('[data-open]').addEventListener('click', () => copyText(area.value));
   dialog.querySelector('[data-clear]').addEventListener('click', () => {
     clearCart();
     clearBuyer();
@@ -290,13 +289,14 @@ function createNotice() {
 
 export function showCheckoutNotice({ message, payment, copied, opened }) {
   notice ??= createNotice();
-  const handle = `@${CONFIG.instagram.handle}`;
+  const wa = `el WhatsApp de Kova (${CONFIG.whatsapp.display})`;
   notice.querySelector('[data-step-open]').textContent = opened
-    ? `Abrimos el chat de ${handle} en una pestaña nueva.`
-    : `Abre el chat de ${handle} con el botón de abajo.`;
+    ? `Abrimos ${wa} con tu pedido ya escrito. Revísalo y pulsa enviar.`
+    : `Abre ${wa} con el botón de abajo: el pedido aparecerá escrito. Revísalo y pulsa enviar.`;
   notice.querySelector('[data-step-copy]').textContent = copied
-    ? 'Copiamos tu pedido: pégalo en el chat de Instagram.'
-    : 'No pudimos copiar el mensaje automáticamente: cópialo desde el recuadro de abajo y pégalo en el chat.';
+    ? 'Si el mensaje no aparece escrito, pégalo en el chat: ya lo copiamos.'
+    : 'Si el mensaje no aparece escrito, cópialo desde el recuadro de abajo y pégalo en el chat.';
+  notice.querySelector('[data-open]').href = whatsappUrl(message);
   notice.classList.toggle('is-copy-failed', !copied);
   notice.querySelector('[data-notice-pay]').innerHTML = payment
     ? `<p class="modal__label">Cómo pagar: ${esc(payment.label)}</p>${paymentDetailHtml(payment)}`

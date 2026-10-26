@@ -125,7 +125,7 @@ function renderProduct() {
             <button class="btn btn--primary btn--xl btn--block pdp__cta" type="button" ${soldOut ? 'data-contact' : 'data-add'}>
               ${soldOut ? 'Preguntar por reposición' : '<span data-add-label>Añadir al carrito</span>'} <i class="ico ico--destellos" aria-hidden="true"></i>
             </button>
-            <p class="pdp__note"><i class="ico ico--orbita" aria-hidden="true"></i> Arma tu pedido en el carrito y envíalo por mensaje directo en Instagram.</p>
+            <p class="pdp__note"><i class="ico ico--orbita" aria-hidden="true"></i> Arma tu pedido en el carrito y envíalo por WhatsApp.</p>
             ${renderTag(category)}
           </div>
         </div>
@@ -143,7 +143,7 @@ function renderProduct() {
       <button class="btn btn--primary btn--sm" type="button" ${soldOut ? 'data-contact' : 'data-add'}>${soldOut ? 'Preguntar' : 'Añadir'} <span class="btn__arrow" aria-hidden="true">${soldOut ? '→' : '+'}</span></button>
     </div>`;
 
-  // Agotado: se conserva el modal de contacto por Instagram para preguntar por reposición.
+  // Agotado: se conserva el modal de contacto (WhatsApp) para preguntar por reposición.
   if (soldOut) {
     const openModal = createContactModal(product);
     main.querySelectorAll('[data-contact]').forEach((btn) => btn.addEventListener('click', () => openModal()));

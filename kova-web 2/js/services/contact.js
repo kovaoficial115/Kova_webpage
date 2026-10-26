@@ -1,7 +1,7 @@
 /**
- * Contacto y compra por Instagram.
+ * Contacto y compra por WhatsApp.
  * - Mensaje de un producto (consultas, p. ej. reposición de un agotado).
- * - Mensaje del pedido completo del carrito y apertura del chat de Instagram.
+ * - Mensaje del pedido completo del carrito y apertura del chat de WhatsApp con el texto ya escrito.
  */
 import { CONFIG } from '../config.js';
 import { formatPrice } from '../utils/format.js';
@@ -14,16 +14,6 @@ export function buildContactMessage(product, size) {
     .replace('{size}', size ? ` — talla ${size}` : '')
     .replace('{price}', formatPrice(product.price))
     .replace('{url}', url);
-}
-
-/** Copia el mensaje (si el navegador lo permite). Devuelve true si se copió. */
-export async function copyContactMessage(product, size) {
-  try {
-    await navigator.clipboard.writeText(buildContactMessage(product, size));
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /* ---------- Pedido del carrito ---------- */
@@ -82,14 +72,19 @@ export async function copyText(text) {
   }
 }
 
+/** Enlace al WhatsApp de Kova, con el mensaje ya escrito si se pasa uno. */
+export const whatsappUrl = (message = '') =>
+  `https://wa.me/${CONFIG.whatsapp.number}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
+
 /**
- * Inicia la compra: copia el mensaje y abre el chat de Instagram de Kova (el mismo destino del catálogo).
+ * Inicia la compra: abre el WhatsApp de Kova con el pedido ya escrito.
+ * Además copia el mensaje, por si la app no lo muestra escrito (respaldo).
  * La pestaña se abre en el mismo clic para que el navegador no la bloquee.
- * Devuelve { copied, opened }. El pedido NO queda enviado: el cliente debe pegarlo y enviarlo.
+ * Devuelve { copied, opened }. El pedido NO queda enviado: el cliente debe pulsar enviar en WhatsApp.
  */
-export async function startInstagramCheckout(message) {
+export async function startWhatsAppCheckout(message) {
   const copying = copyText(message);
-  const win = window.open(CONFIG.instagram.contactUrl, '_blank');
+  const win = window.open(whatsappUrl(message), '_blank');
   if (win) win.opener = null;
   return { copied: await copying, opened: Boolean(win) };
 }

@@ -19,11 +19,12 @@ export function renderFooter() {
         <div class="footer__col">
           <h3 class="footer__title">Contacto</h3>
           <ul class="footer__list">
+            <li><a href="https://wa.me/${CONFIG.whatsapp.number}" target="_blank" rel="noopener">WhatsApp ${esc(CONFIG.whatsapp.display)}</a></li>
             <li><a href="${CONFIG.instagram.profileUrl}" target="_blank" rel="noopener">Instagram @${esc(CONFIG.instagram.handle)}</a></li>
-            <li><a href="${CONFIG.instagram.contactUrl}" target="_blank" rel="noopener">Enviar mensaje directo</a></li>
+            <li><a href="${CONFIG.instagram.contactUrl}" target="_blank" rel="noopener">Mensaje directo en Instagram</a></li>
             <li class="footer__mail">
               <a href="mailto:${esc(CONFIG.contactEmail)}">${esc(CONFIG.contactEmail)}</a>
-              <small>Colaboraciones, propuestas y consultas generales. Los pedidos se hacen por Instagram.</small>
+              <small>Colaboraciones, propuestas y consultas generales. Los pedidos se hacen por WhatsApp.</small>
             </li>
           </ul>
           <p class="footer__made"><i class="ico ico--globo" aria-hidden="true"></i> Hecho en Colombia</p>
