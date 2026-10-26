@@ -124,6 +124,14 @@ h1, h2, h3, .display { font-family: var(--f-display); font-weight: 400; line-hei
 .skip { position: absolute; left: -999px; top: 8px; z-index: 200; background: var(--scarlet); color: var(--white); padding: 8px 12px; }
 .skip:focus { left: 8px; }
 .noscript { padding: 40px var(--gutter); text-align: center; }
+/* Mientras llega el catálogo (base de datos en línea), un destello discreto en lugar de una página vacía. */
+main:empty { min-height: 70vh; display: grid; place-items: center; }
+main:empty::before {
+  content: ''; width: 34px; height: 34px; background: var(--scarlet);
+  -webkit-mask: url('../assets/brand/icons/destellos.svg') center / contain no-repeat;
+  mask: url('../assets/brand/icons/destellos.svg') center / contain no-repeat;
+  animation: twinkle 1.6s var(--ease) infinite;
+}
 
 /* ---------- Botones ----------
  * Anton en mayúsculas, esquinas rectas como las piezas del manual.
