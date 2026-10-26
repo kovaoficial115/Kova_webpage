@@ -1,0 +1,11 @@
+-- Productos actuales de KOVA (generado desde js/data/products.js).
+-- Ejecútalo en Supabase → SQL Editor DESPUÉS de schema.sql. No sobrescribe productos que ya existan.
+insert into public.products
+  (id, name, category, price, images, description, sizes, sold_out_sizes, details, colors, featured, tag, available, published, position)
+values
+  ('cyber-star-tee', 'Cyber Star Tee', 'shirts', 85000, '["assets/products/shirts/cyber-star-tee-front.svg","assets/products/shirts/cyber-star-tee-back.svg"]'::jsonb, 'Camiseta azul marino oversize con destellos al frente y conector gráfico en la espalda. Algodón 100% de 220 g.', '["S","M","L","XL"]'::jsonb, '[]'::jsonb, '["100% algodón","220 g","Fit oversize","Hecho en Colombia"]'::jsonb, '[]'::jsonb, true, 'DROP 01', true, true, 0),
+  ('orbit-2k-tee', 'Orbit 2K Tee', 'shirts', 80000, '["assets/products/shirts/orbit-tee-front.svg"]'::jsonb, 'Camiseta color hueso con el elemento orbital de Kova en el pecho. Corte boxy y cuello reforzado.', '["S","M","L","XL"]'::jsonb, '["XL"]'::jsonb, '["100% algodón","220 g","Fit oversize","Hecho en Colombia"]'::jsonb, '[]'::jsonb, true, null, true, true, 1),
+  ('grid-runner-tee', 'Grid Runner Tee', 'shirts', 85000, '["assets/products/shirts/grid-runner-tee-front.svg"]'::jsonb, 'Globo en línea fina sobre azul marino. Inspirada en la estética digital de los 2000.', '["S","M","L","XL"]'::jsonb, '[]'::jsonb, '["100% algodón","220 g","Fit oversize","Hecho en Colombia"]'::jsonb, '[]'::jsonb, false, 'NEW', true, true, 2),
+  ('y2k-heart-tee', 'Y2K Heart Tee', 'shirts', 80000, '["assets/products/shirts/y2k-heart-tee-front.svg"]'::jsonb, 'Doble destello Y2K en escarlata. Camiseta hueso, fit relajado.', '["S","M","L","XL"]'::jsonb, '[]'::jsonb, '["100% algodón","220 g","Fit oversize","Hecho en Colombia"]'::jsonb, '[]'::jsonb, false, null, true, true, 3),
+  ('chrome-kv-tee', 'Chrome K//V Tee', 'shirts', 90000, '["assets/products/shirts/chrome-logo-tee-front.svg","assets/products/shirts/chrome-logo-tee-back.svg"]'::jsonb, 'Espiral de Kova al frente y alas gráficas en la espalda. Edición limitada.', '["S","M","L","XL"]'::jsonb, '[]'::jsonb, '["100% algodón","220 g","Fit oversize","Hecho en Colombia"]'::jsonb, '[]'::jsonb, true, 'LIMITED', true, true, 4)
+on conflict (id) do nothing;

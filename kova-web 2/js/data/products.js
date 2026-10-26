@@ -1,5 +1,12 @@
 /**
- * CATÁLOGO DE PRODUCTOS — el único archivo que necesitas tocar para agregar productos.
+ * CATÁLOGO DE PRODUCTOS — RESPALDO.
+ *
+ * Con Supabase configurado (CONFIG.backend en js/config.js) los productos se administran desde el panel
+ * /admin y la tienda los lee de la base de datos. Este archivo solo se usa si la base no está configurada
+ * o no responde, y es la fuente de la migración inicial (supabase/seed.sql). El panel puede generar una
+ * versión actualizada con «Descargar respaldo (products.js)».
+ *
+ * Sin Supabase, este sigue siendo el archivo donde se agregan productos a mano:
  *
  * Para agregar un producto:
  *   1. Pon sus imágenes en assets/products/<categoría>/ (JPG o WebP, ~1200px de ancho, proporción 4:5).

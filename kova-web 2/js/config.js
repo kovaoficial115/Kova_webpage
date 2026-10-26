@@ -61,4 +61,16 @@ export const CONFIG = {
   },
 
   currency: { locale: 'es-CO', code: 'COP' },
+
+  // Base de datos del catálogo (Supabase). Con estos dos datos vacíos la tienda usa js/data/products.js.
+  // Se copian de Supabase → Project Settings → API. La clave "anon"/"publishable" es PÚBLICA por diseño:
+  // solo permite leer productos publicados; escribir exige iniciar sesión como administrador (ver README).
+  // NUNCA pongas aquí la clave "service_role"/"secret".
+  backend: {
+    supabaseUrl: 'https://vfdpkmqncbhrauqtrnay.supabase.co',
+    supabaseAnonKey: 'sb_publishable_oBeBITx1TCiLsVvvK0kA1g_jTXeV6hW',
+    table: 'products',
+    bucket: 'product-images',
+    timeoutMs: 6000,                 // si la base no responde a tiempo, se usa la última copia o products.js
+  },
 };
