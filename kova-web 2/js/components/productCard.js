@@ -3,6 +3,7 @@ import { addItem } from '../services/cart.js';
 import { CONFIG } from '../config.js';
 import { formatPrice } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
+import { productAlt } from '../utils/alt.js';
 
 // El id va después de # para que funcione en cualquier servidor (algunos, como `npx serve`,
 // redirigen producto.html → /producto y borran lo que va después de ?).
@@ -104,8 +105,8 @@ export function productCard(product, index = 0) {
     <article class="card reveal${soldOut ? ' is-soldout' : ''}${back ? ' has-back' : ''}" style="--i:${index % 4}" data-category="${esc(product.category)}">
       <a class="card__link" href="${productUrl(product)}">
         <div class="card__media">
-          <img class="card__img" src="${front}" alt="${esc(product.name)}" width="800" height="1000" loading="lazy" decoding="async">
-          ${back ? `<img class="card__img card__img--back" src="${back}" alt="" width="800" height="1000" loading="lazy" decoding="async">` : ''}
+          <img class="card__img" src="${front}" alt="${esc(productAlt(product, 0))}" width="800" height="1000" loading="lazy" decoding="async">
+          ${back ? `<img class="card__img card__img--back" src="${back}" alt="${esc(productAlt(product, 1))}" width="800" height="1000" loading="lazy" decoding="async">` : ''}
           ${tag}
           <i class="ico ico--destellos card__spark" aria-hidden="true"></i>
           <span class="card__cta" aria-hidden="true">Ver producto <span class="btn__arrow">→</span></span>

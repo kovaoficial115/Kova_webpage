@@ -5,6 +5,7 @@ import { chapter } from '../components/chapter.js';
 import { mountLayout } from '../components/layout.js';
 import { formatPrice, pad } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
+import { productAlt, imageView } from '../utils/alt.js';
 import { addItem } from '../services/cart.js';
 import { CONFIG } from '../config.js';
 
@@ -35,15 +36,15 @@ function renderGallery() {
   const many = product.images.length > 1;
   const thumbs = many
     ? `<div class="gallery__thumbs">${product.images.map((src, i) => `
-        <button type="button" class="gallery__thumb${i === 0 ? ' is-active' : ''}" data-index="${i}" aria-label="Ver imagen ${i + 1}" aria-pressed="${i === 0}">
-          <img src="${src}" alt="" width="160" height="200" loading="lazy">
+        <button type="button" class="gallery__thumb${i === 0 ? ' is-active' : ''}" data-index="${i}" aria-label="Ver ${esc(imageView(src) ?? `imagen ${i + 1}`)}" aria-pressed="${i === 0}">
+          <img src="${src}" alt="${esc(productAlt(product, i, { short: true }))}" width="160" height="200" loading="lazy">
         </button>`).join('')}</div>`
     : '';
   return `
     <div class="gallery">
       <div class="gallery__main">
         ${product.images.map((src, i) => `
-          <img class="gallery__img${i === 0 ? ' is-active' : ''}" src="${src}" alt="${esc(product.name)}${many ? ` — imagen ${i + 1}` : ''}" width="800" height="1000"${i === 0 ? ' fetchpriority="high"' : ' loading="lazy"'}>`).join('')}
+          <img class="gallery__img${i === 0 ? ' is-active' : ''}" src="${src}" alt="${esc(productAlt(product, i))}" width="800" height="1000"${i === 0 ? ' fetchpriority="high"' : ' loading="lazy"'}>`).join('')}
         <span class="gallery__count" aria-hidden="true">${many ? `<b data-current>01</b> / ${pad(product.images.length, 2)}` : ''}</span>
       </div>
       ${thumbs}
@@ -87,7 +88,7 @@ function renderTag(category) {
   return `
     <aside class="hangtag" aria-label="Detalles">
       <span class="hangtag__hole" aria-hidden="true"></span>
-      <img class="hangtag__mark" src="${CONFIG.brand.mark}" alt="" width="72" height="81" loading="lazy">
+      <img class="hangtag__mark" src="${CONFIG.brand.mark}" alt="Símbolo de Kova" width="72" height="81" loading="lazy">
       <ul class="hangtag__list">${details.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>
       <span class="hangtag__ref">${productRef(product)}</span>
     </aside>`;

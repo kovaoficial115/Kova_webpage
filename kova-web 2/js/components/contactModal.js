@@ -2,6 +2,7 @@ import { CONFIG } from '../config.js';
 import { buildContactMessage, whatsappUrl } from '../services/contact.js';
 import { formatPrice } from '../utils/format.js';
 import { esc } from '../utils/dom.js';
+import { productAlt } from '../utils/alt.js';
 
 /**
  * Crea el modal de contacto para un producto y devuelve la función para abrirlo.
@@ -19,7 +20,7 @@ export function createContactModal(product) {
       <h2 class="modal__title" id="modal-title">¿Lo quieres?<br>Escríbenos<span class="dot">.</span></h2>
 
       <div class="modal__product">
-        <img src="${product.images[0]}" alt="" width="80" height="100">
+        <img src="${product.images[0]}" alt="${esc(productAlt(product, 0, { short: true }))}" width="80" height="100">
         <div>
           <strong>${esc(product.name)}</strong>
           <span class="modal__meta"><span data-size-label></span>${formatPrice(product.price)}</span>

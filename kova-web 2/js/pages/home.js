@@ -4,6 +4,8 @@ import { productGrid, productUrl } from '../components/productCard.js';
 import { chapter } from '../components/chapter.js';
 import { mountLayout, initReveal } from '../components/layout.js';
 import { esc } from '../utils/dom.js';
+import { initParallax } from '../components/parallax.js';
+import { productAlt } from '../utils/alt.js';
 import { formatPrice, pad } from '../utils/format.js';
 
 // Números de capítulo en orden de aparición (las secciones que no aplican no dejan huecos).
@@ -50,7 +52,7 @@ function renderHero() {
             </div>
             ${main ? `
             <a class="hero__pick" href="${productUrl(main)}">
-              <img src="${main.images[0]}" alt="" width="800" height="1000">
+              <img src="${main.images[0]}" alt="${esc(productAlt(main, 0, { short: true }))}" width="800" height="1000">
               <span><small>En el drop</small><strong>${esc(main.name)}</strong><em>${formatPrice(main.price)}</em></span>
               <span class="btn__arrow" aria-hidden="true">→</span>
             </a>` : ''}
@@ -68,7 +70,7 @@ function renderCategories() {
     const items = getByCategory(c.id);
     return `
       <a class="tile reveal" style="--i:${i}" href="#${c.id}" >
-        <img src="${c.cover ?? items[0].images[0]}" alt="" width="1000" height="1250" loading="lazy" decoding="async">
+        <img src="${c.cover ?? items[0].images[0]}" alt="${esc(c.cover ? `Foto de campaña de ${c.label.toLowerCase()} Kova` : productAlt(items[0], 0, { short: true }))}" width="1000" height="1250" loading="lazy" decoding="async">
         <span class="tile__top"><span class="tag tag--navy">${esc(c.code)}</span><span>${pad(items.length, 2)} productos</span></span>
         <span class="tile__bottom">
           <span class="tile__label">${esc(c.label)}</span>
@@ -99,13 +101,13 @@ function renderFeatured() {
 
 function renderPromo() {
   return `
-    <section class="promo s-navy" aria-label="Drop 01">
-      <div class="promo__pattern" aria-hidden="true"></div>
+    <section class="promo s-navy" aria-label="Drop 01" data-parallax-host>
+      <div class="promo__pattern" aria-hidden="true" data-parallax="-0.06"></div>
       <div class="container promo__inner">
         <figure class="promo__photo reveal">
-          <img src="${CAMPAIGN.promo}" alt="Muro con afiches de lanzamiento Kova Drop 01" width="1200" height="1500" loading="lazy" decoding="async">
+          <img src="${CAMPAIGN.promo}" alt="Muro de concreto con afiches pegados del lanzamiento Kova Drop 01" data-parallax="0.07" width="1200" height="1500" loading="lazy" decoding="async">
         </figure>
-        <div class="promo__copy reveal" style="--i:1">
+        <div class="promo__copy reveal" style="--i:1" data-parallax="-0.05">
           <span class="tag promo__tag">No va a pasar desapercibido</span>
           <h2 class="promo__title">Drop 01<br>ya está en la calle<span class="dot">.</span></h2>
           <p>Piezas pensadas para destacar y vestir lo que realmente te representa. Unidades limitadas por diseño.</p>
@@ -185,6 +187,7 @@ document.querySelector('main').innerHTML = [
 ].join('');
 
 mountLayout();
+initParallax();
 
 /* ---------- Filtro del catálogo ----------
  * Los enlaces #<categoría> (menú, tarjetas de categoría, pie) abren el catálogo filtrado. */

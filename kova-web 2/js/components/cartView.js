@@ -20,7 +20,7 @@ function lineHtml(l, max) {
   return `
     <li class="cart-line" data-key="${esc(l.key)}">
       <a class="cart-line__media" href="${productUrl({ id: l.id })}" tabindex="-1" aria-hidden="true">
-        <img src="${esc(l.image)}" alt="" width="160" height="200" loading="lazy">
+        <img src="${esc(l.image)}" alt="${esc(`Foto de ${l.name}`)}" width="160" height="200" loading="lazy">
       </a>
       <div class="cart-line__info">
         <a class="cart-line__name" href="${productUrl({ id: l.id })}">${esc(l.name)}</a>

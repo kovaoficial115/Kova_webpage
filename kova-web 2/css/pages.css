@@ -102,6 +102,11 @@
 .promo { position: relative; padding-block: clamp(64px, 9vw, 128px); overflow: hidden; }
 .promo__pattern { position: absolute; inset: 0; background: url('../assets/brand/patterns/kova.svg') 0 0 / 288px 169px; opacity: .1; }
 @media (max-width: 860px) { .promo__pattern { opacity: .06; } }
+/* Parallax (js/components/parallax.js): la foto queda más alta que su marco y se desliza dentro de él; el patrón
+ * de fondo va en sentido contrario. Sin JS o con «reducir movimiento» todo queda quieto y en su sitio. */
+.has-parallax .promo__pattern { inset: -12% 0; will-change: translate; }
+.has-parallax .promo__photo { position: relative; }
+.has-parallax .promo__photo img { position: absolute; left: 0; top: -9%; height: 118%; will-change: translate; }
 .promo__inner { position: relative; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); align-items: center; gap: clamp(32px, 6vw, 96px); }
 .promo__photo { aspect-ratio: 4 / 5; overflow: hidden; outline: 1px solid var(--line-strong); outline-offset: 10px; }
 .promo__photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease-out); }

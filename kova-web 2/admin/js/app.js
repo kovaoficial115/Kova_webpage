@@ -350,7 +350,7 @@ function renderList() {
       ${items.map((p) => `
         <li class="adm-row${p.published ? '' : ' is-hidden'}" data-id="${esc(p.id)}">
           <a class="adm-row__thumb" href="#/editar/${encodeURIComponent(p.id)}" tabindex="-1" aria-hidden="true">
-            ${p.images[0] ? `<img src="${esc(imgSrc(p.images[0]))}" alt="" loading="lazy" width="80" height="100">` : '<span>Sin imagen</span>'}
+            ${p.images[0] ? `<img src="${esc(imgSrc(p.images[0]))}" alt="${esc(p.name)}" loading="lazy" width="80" height="100">` : '<span>Sin imagen</span>'}
           </a>
           <div class="adm-row__main">
             <a class="adm-row__name" href="#/editar/${encodeURIComponent(p.id)}">${esc(p.name)}</a>
@@ -917,8 +917,8 @@ function renderPreview(form) {
   box.innerHTML = `
     <div class="adm-pcard${second ? ' has-back' : ''}">
       <div class="adm-pcard__media">
-        ${first ? `<img src="${src(first)}" alt="">` : '<span class="adm-pcard__noimg">Sin imagen</span>'}
-        ${second ? `<img class="adm-pcard__back" src="${src(second)}" alt="">` : ''}
+        ${first ? `<img src="${src(first)}" alt="Vista previa: ${esc(d.name || 'producto sin nombre')}">` : '<span class="adm-pcard__noimg">Sin imagen</span>'}
+        ${second ? `<img class="adm-pcard__back" src="${src(second)}" alt="Vista previa: segunda imagen">` : ''}
         ${soldOut ? '<span class="tag tag--out adm-pcard__tag">Agotado</span>' : d.tag ? `<span class="tag adm-pcard__tag">${esc(d.tag)}</span>` : ''}
       </div>
       <div class="adm-pcard__info">
