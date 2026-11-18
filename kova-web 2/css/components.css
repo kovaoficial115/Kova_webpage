@@ -358,7 +358,7 @@
 .tile__top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 .tile__top .tag { background: var(--arena); color: var(--navy); }
 .tile__bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding-top: 14px; border-top: 1px solid var(--arena); }
-.tile__label { font-family: var(--f-display); font-size: clamp(48px, 7vw, 108px); line-height: .85; text-transform: uppercase; }
+.tile__label { font-family: var(--f-display); font-size: clamp(48px, 7vw, 108px); line-height: var(--lh-display); text-transform: uppercase; }
 .tile__cta { display: inline-flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 .tile__cta .ico { font-size: 22px; color: var(--scarlet); transition: transform .5s var(--ease-out); }
 .tile:hover img { transform: scale(1.06); }
@@ -694,14 +694,14 @@ body:not([data-page="cart"]) .footer { padding-bottom: 104px; }
 .field__error { display: flex; gap: 8px; align-items: baseline; font-size: 13px; font-weight: 600; }
 .field__error:empty { display: none; }
 .field__error::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--scarlet); transform: translateY(-1px); }
-.checkout-state { margin: 2px 0 14px; font-size: 13px; letter-spacing: .04em; text-transform: none; line-height: 1.4; }
+.checkout-state { margin: 2px 0 14px; font-size: 13px; letter-spacing: .04em; text-transform: none; line-height: var(--lh-body); }
 .checkout-state.is-error { font-weight: 700; }
 .checkout-state.is-error::before { animation: none; }
 
 /* ---------- Carrito vacío ---------- */
 .cart-empty { display: grid; justify-items: start; gap: 12px; padding: 28px 0 20px; }
 .cart-empty__ico { font-size: 52px; width: 1.4em; color: var(--scarlet); }
-.cart-empty__title { font-family: var(--f-display); font-size: 44px; line-height: .92; text-transform: uppercase; }
+.cart-empty__title { font-family: var(--f-display); font-size: 44px; line-height: var(--lh-display); text-transform: uppercase; }
 .cart-empty__text { color: var(--muted); max-width: 36ch; margin-bottom: 8px; }
 
 /* ---------- Aviso de compra iniciada (sobre el modal de contacto) ---------- */
@@ -730,7 +730,7 @@ body:not([data-page="cart"]) .footer { padding-bottom: 104px; }
 
 /* ---------- Pie: correo de contacto ---------- */
 .footer__mail a { overflow-wrap: anywhere; }
-.footer__mail small { display: block; max-width: 32ch; margin-top: 2px; font-size: 13px; line-height: 1.45; color: var(--muted); opacity: .8; }
+.footer__mail small { display: block; max-width: 32ch; margin-top: 2px; font-size: 13px; line-height: var(--lh-body); color: var(--muted); opacity: .8; }
 
 /* ---------- Método de pago ---------- */
 .pay { min-width: 0; padding: 0; margin: 4px 0 14px; border: 0; }

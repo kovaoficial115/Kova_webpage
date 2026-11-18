@@ -14,7 +14,7 @@ const nextChapter = () => pad(++chapterCount, 2);
 
 const CAMPAIGN = {
   hero: 'assets/img/campana-flatlay.jpg',
-  promo: 'assets/img/campana-posters.jpg',
+  promo: 'assets/img/poster-psyche.jpg',
 };
 
 function renderHero() {
@@ -105,7 +105,7 @@ function renderPromo() {
       <div class="promo__pattern" aria-hidden="true" data-parallax="-0.06"></div>
       <div class="container promo__inner">
         <figure class="promo__photo reveal">
-          <img src="${CAMPAIGN.promo}" alt="Muro de concreto con afiches pegados del lanzamiento Kova Drop 01" data-parallax="0.07" width="1200" height="1500" loading="lazy" decoding="async">
+          <img src="${CAMPAIGN.promo}" alt="Póster de Psyche, Drop 01 de Kova Streetwear. Lanzamiento oficial 28.11.26" width="1080" height="1350" loading="lazy" decoding="async">
         </figure>
         <div class="promo__copy reveal" style="--i:1" data-parallax="-0.05">
           <span class="tag promo__tag">No va a pasar desapercibido</span>

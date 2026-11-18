@@ -24,6 +24,10 @@
   --f-display: 'Kova Display', 'Anton', Impact, 'Arial Narrow', sans-serif;
   --f-body: 'Kova Body', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
+  /* Interlineado (manual 1.1): Satoshi a 1.2 y titulares Anton compactos a 0.9, sin choques entre líneas. */
+  --lh-body: 1.2;
+  --lh-display: .9;
+
   --container: 1400px;
   --gutter: clamp(16px, 4vw, 56px);
   --cols: 9;                         /* el manual usa una retícula de 9 columnas */
@@ -47,7 +51,7 @@ body {
   color: var(--arena);
   font-family: var(--f-body);
   font-size: 16px;
-  line-height: 1.6;
+  line-height: var(--lh-body);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -61,7 +65,7 @@ ul { list-style: none; padding: 0; }
 ::selection { background: var(--scarlet); color: var(--white); }
 
 /* Anton: titulares, destacados y subtítulos (3.1). Siempre en mayúsculas y compacta. */
-h1, h2, h3, .display { font-family: var(--f-display); font-weight: 400; line-height: .92; text-transform: uppercase; letter-spacing: .005em; }
+h1, h2, h3, .display { font-family: var(--f-display); font-weight: 400; line-height: var(--lh-display); text-transform: uppercase; letter-spacing: .005em; }
 /* El punto escarlata cierra los titulares, como en la pieza "YA CASI NOS VES." */
 .dot { color: var(--scarlet); }
 
