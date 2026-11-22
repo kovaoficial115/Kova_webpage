@@ -37,7 +37,7 @@ main.innerHTML = `
           ${buyerFormHtml('cart-page')}
           ${copyHintHtml()}
           <button class="btn btn--primary btn--xl btn--block" type="submit" form="cart-page-form">
-            Finalizar compra <i class="ico ico--destellos" aria-hidden="true"></i>
+            Finalizar pedido <i class="ico ico--destellos" aria-hidden="true"></i>
           </button>
           <a class="btn btn--line btn--block cartpage__continue" href="index.html#catalogo">Seguir comprando</a>
           <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Disponibilidad, envío y pago se confirman con Kova por WhatsApp.</p>

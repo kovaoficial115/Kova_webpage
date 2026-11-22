@@ -18,38 +18,110 @@ export function buildContactMessage(product, size) {
 
 /* ---------- Pedido del carrito ---------- */
 
-/** Mensaje del pedido completo, a partir del estado actual del carrito (precios del catálogo). */
-export function buildOrderMessage(cart, buyer) {
-  const items = cart.lines.map((l, i) => [
-    `${i + 1}. ${l.name}`,
-    l.size ? `Talla: ${l.size}` : null,
-    l.color ? `Color: ${l.color}` : null,
-    `Cantidad: ${l.qty}`,
-    `Precio unitario: ${formatPrice(l.unitPrice)}`,
-    `Subtotal: ${formatPrice(l.subtotal)}`,
-  ].filter(Boolean).join('\n')).join('\n\n');
+/** Número de pedido legible: KV-251122-7F3A (fecha + 4 caracteres aleatorios). */
+export function newOrderId(date = new Date()) {
+  const ymd = [date.getFullYear() % 100, date.getMonth() + 1, date.getDate()].map((n) => String(n).padStart(2, '0')).join('');
+  const rand = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+  return `KV-${ymd}-${rand}`;
+}
 
-  return [
-    'Hola, Kova. ¡Quiero realizar el siguiente pedido!',
+const FACE_NAME = { front: 'FRENTE', back: 'ESPALDA' };
+
+/**
+ * Archivos que el cliente debe adjuntar en WhatsApp: uno por cada cara estampada de cada
+ * personalización, numerados por producto para que KOVA sepa cuál es cuál.
+ */
+export function attachmentsFor(cart) {
+  const out = [];
+  cart.lines.forEach((l, i) => {
+    if (!l.custom) return;
+    l.zones.forEach((z) => out.push({
+      product: i + 1,
+      face: z.face,
+      faceName: FACE_NAME[z.face],
+      label: `Producto ${i + 1} · ${FACE_NAME[z.face]}`,
+      zone: `${z.label} — ${z.measures}`,
+      file: l.files?.[z.face] ?? '',
+    }));
+  });
+  return out;
+}
+
+/**
+ * Mensaje del pedido completo (precios vigentes del catálogo y de KOVA CUSTOM).
+ * Usa *negrita* de WhatsApp. Nunca dice que los archivos se enviaron: el cliente los adjunta.
+ */
+export function buildOrderMessage(cart, buyer, orderId) {
+  const customLines = cart.lines.filter((l) => l.custom);
+  const customUnits = customLines.reduce((n, l) => n + l.qty, 0);
+  const hasCustom = customLines.length > 0;
+  const files = attachmentsFor(cart);
+
+  const blocks = cart.lines.map((l, i) => {
+    const head = cart.lines.length > 1 ? `*Producto ${i + 1}: ${l.custom ? 'KOVA CUSTOM' : l.name}*` : null;
+    const rows = l.custom
+      ? [
+        `- Modalidad: ${l.mode.name} (${l.mode.label})`,
+        `- Color: ${l.color}`,
+        `- Talla: ${l.size}`,
+        `- Estampado delantero: ${l.front}`,
+        `- Estampado trasero: ${l.back}`,
+        `- Cantidad: ${l.qty}`,
+        `- Precio: ${formatPrice(l.unitPrice)}`,
+        `- Total: ${formatPrice(l.subtotal)}`,
+      ]
+      : [
+        cart.lines.length > 1 ? null : `- Producto: ${l.name}`,
+        l.color ? `- Color: ${l.color}` : null,
+        l.size ? `- Talla: ${l.size}` : null,
+        `- Cantidad: ${l.qty}`,
+        `- Precio: ${formatPrice(l.unitPrice)}`,
+        `- Total: ${formatPrice(l.subtotal)}`,
+      ];
+    return [head, ...rows].filter(Boolean).join('\n');
+  });
+
+  const intro = hasCustom
+    ? (customUnits > 1 || customLines.length > 1
+      ? 'Hola, quiero realizar camisetas personalizadas.'
+      : 'Hola, quiero realizar una camiseta personalizada.')
+    : 'Hola, Kova. Quiero realizar el siguiente pedido.';
+
+  const lines = [
+    hasCustom ? '*KOVA CUSTOM — NUEVO PEDIDO*' : '*KOVA — NUEVO PEDIDO*',
     '',
-    'DATOS DEL COMPRADOR',
-    `Nombre: ${buyer.name}`,
-    `Teléfono: ${buyer.phone}`,
+    intro,
     '',
-    'MÉTODO DE PAGO',
-    `${buyer.payment.label} — ${buyer.payment.detail}${buyer.payment.key ? ` ${buyer.payment.key}` : ''}`,
+    '*Datos del pedido:*',
+    `- Número de pedido: ${orderId}`,
+    cart.lines.length > 1 ? `- Productos: ${cart.lines.length} (${cart.units} unidades)` : null,
     '',
-    'MI PEDIDO',
+    blocks.join('\n\n'),
+  ];
+  if (cart.lines.length > 1) lines.push('', `*TOTAL DEL PEDIDO: ${formatPrice(cart.total)}*`);
+
+  lines.push(
     '',
-    items,
-    '',
-    'RESUMEN',
-    `Total de unidades: ${cart.units}`,
-    `Subtotal: ${formatPrice(cart.subtotal)}`,
-    `Total del pedido: ${formatPrice(cart.total)}`,
-    '',
-    'Quedo atento/a para confirmar la disponibilidad y los detalles de mi pedido. ¡Gracias!',
-  ].join('\n');
+    '*Datos del comprador:*',
+    `- Nombre: ${buyer.name}`,
+    `- Teléfono: ${buyer.phone}`,
+    `- Método de pago: ${buyer.payment.label} — ${buyer.payment.detail}${buyer.payment.key ? ` ${buyer.payment.key}` : ''}`,
+  );
+
+  if (hasCustom) {
+    const two = files.some((f) => f.face === 'front') && files.some((f) => f.face === 'back');
+    lines.push(
+      '',
+      two
+        ? 'Voy a adjuntar mis diseños originales para realizar el estampado: el archivo del FRENTE y el de la ESPALDA.'
+        : 'Voy a adjuntar mi diseño original para realizar el estampado.',
+      '*Archivos que adjuntaré en este chat:*',
+      ...files.map((f) => `- ${f.label} (${f.zone})${f.file ? `: «${f.file}»` : ''}`),
+    );
+  }
+
+  lines.push('', 'Quedo atento/a a la confirmación del pedido y del pago. ¡Gracias!');
+  return lines.filter((l) => l !== null).join('\n');
 }
 
 /** Copia texto al portapapeles. Usa la API moderna y, si no existe, el método clásico. */

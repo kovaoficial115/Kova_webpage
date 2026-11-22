@@ -66,7 +66,7 @@ export function mountCart() {
     <div class="cart-panel__foot" data-filled>
       ${copyHintHtml()}
       <button class="btn btn--primary btn--xl btn--block" type="submit" form="cart-panel-form">
-        Finalizar compra <i class="ico ico--destellos" aria-hidden="true"></i>
+        Finalizar pedido <i class="ico ico--destellos" aria-hidden="true"></i>
       </button>
       <div class="cart-panel__links">
         <button class="btn btn--line btn--sm" type="button" data-close>Seguir comprando</button>

@@ -13,7 +13,7 @@ let chapterCount = 0;
 const nextChapter = () => pad(++chapterCount, 2);
 
 const CAMPAIGN = {
-  hero: 'assets/img/campana-flatlay.jpg',
+  hero: 'assets/img/campana-escultura.jpg',
   promo: 'assets/img/poster-psyche.jpg',
 };
 
@@ -41,7 +41,7 @@ function renderHero() {
           <div class="hero__visual">
             <div class="hero__pattern" aria-hidden="true"></div>
             <figure class="hero__photo">
-              <img src="${CAMPAIGN.hero}" alt="Camiseta Kova azul marino sobre concreto con gorra y stickers" width="1200" height="1500" fetchpriority="high">
+              <img src="${CAMPAIGN.hero}" alt="Persona de espaldas con camiseta negra Kova estampada con una escultura clásica y un sigilo, entre gente en movimiento" width="1086" height="1448" fetchpriority="high">
             </figure>
             <i class="ico ico--destellos hero__spark twinkle" aria-hidden="true"></i>
             <i class="ico ico--destellos hero__spark hero__spark--b twinkle twinkle--late" aria-hidden="true"></i>
@@ -117,6 +117,22 @@ function renderPromo() {
     </section>`;
 }
 
+function renderCustom() {
+  return `
+    <section class="custom-band s-arena" aria-labelledby="custom-band-title">
+      <div class="container custom-band__inner reveal">
+        <div>
+          <p class="eyebrow">Nuevo · KOVA Custom</p>
+          <h2 class="custom-band__title" id="custom-band-title">Your design.<br>Your identity<span class="dot">.</span></h2>
+        </div>
+        <div class="custom-band__copy">
+          <p>Estampamos tu propio diseño en una camiseta KOVA: pecho pequeño, pecho grande, espalda o combinados. Previsualízalo en la web y envíanos el archivo original por WhatsApp.</p>
+          <a class="btn btn--primary btn--xl" href="custom.html">Personalizar mi camiseta <i class="ico ico--destellos" aria-hidden="true"></i></a>
+        </div>
+      </div>
+    </section>`;
+}
+
 function renderCatalog() {
   const cats = getActiveCategories();
   const all = getProducts().filter((p) => cats.some((c) => c.id === p.category));
@@ -140,13 +156,13 @@ function renderCatalog() {
 function renderSteps() {
   const steps = [
     ['Elige', 'Escoge tu camiseta y tu talla, y añádela al carrito (desde el catálogo o la página del producto).', 'destellos'],
-    ['Pide', 'En el carrito escribe tu nombre y teléfono, elige cómo pagar (Nequi con QR o llave Banco de Bogotá) y pulsa “Finalizar compra”: se abre WhatsApp con tu pedido escrito, solo envíalo.', 'orbita'],
-    ['Paga y recíbelo', 'Te confirmamos disponibilidad y envío por WhatsApp. Pagas con el método elegido, nos compartes el comprobante y despachamos tu pedido.', 'globo'],
+    ['Pide', 'En el carrito escribe tu nombre y teléfono, elige cómo pagar (Llave Nu o Nequi con QR) y pulsa “Finalizar pedido”: verás el resumen y el botón para enviarlo por WhatsApp.', 'orbita'],
+    ['Paga y recíbelo', 'Te confirmamos disponibilidad y envío por WhatsApp. Pagas con el método elegido, nos compartes el comprobante (lo confirmamos manualmente) y despachamos tu pedido.', 'globo'],
   ];
   return `
     <section class="section s-navy" id="como-comprar">
       <div class="container">
-        ${chapter({ num: nextChapter(), title: 'Cómo comprar', note: 'Carrito, pago con Nequi o Banco de Bogotá y pedido por WhatsApp', folio: '03 pasos' })}
+        ${chapter({ num: nextChapter(), title: 'Cómo comprar', note: 'Carrito, pago con Llave Nu o Nequi y pedido por WhatsApp', folio: '03 pasos' })}
         <ol class="steps">
           ${steps.map(([t, d, ico], i) => `
             <li class="step reveal" style="--i:${i}">
@@ -182,6 +198,7 @@ document.querySelector('main').innerHTML = [
   renderFeatured(),
   renderPromo(),
   renderCatalog(),
+  renderCustom(),
   renderSteps(),
   renderContact(),
 ].join('');

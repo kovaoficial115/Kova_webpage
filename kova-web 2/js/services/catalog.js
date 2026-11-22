@@ -13,6 +13,7 @@
 import { products as fallbackProducts } from '../data/products.js';
 import { categories } from '../data/categories.js';
 import { isRemoteConfigured, fetchPublishedProducts } from './remoteCatalog.js';
+import { settingsReady } from './settings.js';
 
 const SNAPSHOT_KEY = 'kova.catalog.snapshot.v1';
 const visible = (list) => list.filter((p) => p.published !== false);
@@ -37,7 +38,8 @@ async function loadProducts() {
   }
 }
 
-const { list: products, source } = await loadProducts();
+// Productos y ajustes (KOVA CUSTOM, WhatsApp, pagos) se piden a la vez.
+const [{ list: products, source }] = await Promise.all([loadProducts(), settingsReady]);
 
 /** De dónde salieron los productos: 'remote' | 'snapshot' | 'local'. */
 export const catalogSource = source;

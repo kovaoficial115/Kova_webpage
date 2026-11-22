@@ -10,6 +10,7 @@
 --   3. Reglas de seguridad (RLS): el público solo LEE productos publicados;
 --      crear, editar, ocultar y eliminar exige sesión iniciada Y estar en public.admins.
 --   4. Bucket "product-images" para las fotos: lectura pública, escritura solo para admins.
+--   5. public.store_settings  Ajustes de KOVA CUSTOM, WhatsApp y pagos (lectura pública, escritura admins).
 -- =============================================================================
 
 -- 1. Administradores ----------------------------------------------------------
@@ -118,6 +119,45 @@ create policy "product-images: admins borran" on storage.objects
 drop policy if exists "product-images: admins listan" on storage.objects;
 create policy "product-images: admins listan" on storage.objects
   for select to authenticated using (bucket_id = 'product-images' and public.is_admin());
+
+-- 4. Ajustes de la tienda (KOVA CUSTOM, WhatsApp y pagos) -------------------------
+-- Una fila por grupo de ajustes, con su valor en JSON:
+--   'custom'    Modalidades y precios de KOVA CUSTOM, zonas de estampado, colores, tallas, inventario
+--               e imágenes de las camisetas.
+--   'contact'   Número de WhatsApp Business que recibe los pedidos.
+--   'payments'  Métodos de pago del checkout (Llave Nu, Nequi…).
+-- El público solo LEE; guardar exige ser administrador. Si una fila no existe, la tienda usa los
+-- valores iniciales de js/data/custom.js y js/config.js.
+-- Los diseños de los clientes NO se guardan aquí ni en ningún servidor: se envían por WhatsApp.
+create table if not exists public.store_settings (
+  key        text primary key check (key in ('custom', 'contact', 'payments')),
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+drop trigger if exists store_settings_touch on public.store_settings;
+create trigger store_settings_touch before update on public.store_settings
+  for each row execute function public.touch_updated_at();
+
+alter table public.store_settings enable row level security;
+
+drop policy if exists "store_settings: lectura pública" on public.store_settings;
+create policy "store_settings: lectura pública" on public.store_settings
+  for select to anon, authenticated using (true);
+
+drop policy if exists "store_settings: admins crean" on public.store_settings;
+create policy "store_settings: admins crean" on public.store_settings
+  for insert to authenticated with check (public.is_admin());
+
+drop policy if exists "store_settings: admins editan" on public.store_settings;
+create policy "store_settings: admins editan" on public.store_settings
+  for update to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "store_settings: admins eliminan" on public.store_settings;
+create policy "store_settings: admins eliminan" on public.store_settings
+  for delete to authenticated using (public.is_admin());
+
+grant select on public.store_settings to anon, authenticated;
+grant insert, update, delete on public.store_settings to authenticated;
 
 -- =============================================================================
 -- PRIMER ADMINISTRADOR (hazlo después de crear tu usuario en Authentication → Users):

@@ -33,9 +33,18 @@ export const CONFIG = {
   // Correo para consultas generales y colaboraciones. NO recibe pedidos: los pedidos van por WhatsApp.
   contactEmail: 'kova.oficial.115@gmail.com',
 
-  // Métodos de pago que el comprador elige al finalizar. El pago se hace por fuera de la web
-  // (app de Nequi o de su banco) y el comprobante se comparte en el chat de WhatsApp.
+  // WhatsApp e información bancaria se administran desde /admin → Pagos y WhatsApp (Supabase,
+  // tabla store_settings). Estos son los valores iniciales mientras el panel no guarde los suyos.
+  // Métodos de pago que el comprador elige al finalizar. El pago se hace por fuera de la web y el
+  // comprobante se comparte en el chat de WhatsApp. La confirmación del pago es manual.
   payments: [
+    {
+      id: 'nu',
+      label: 'Nu',
+      detail: 'Llave Nu',
+      key: '3145224180',
+      hint: 'Transfiere a esta llave desde la app de Nu o de tu banco. Confirmamos el pago manualmente por WhatsApp.',
+    },
     {
       id: 'nequi',
       label: 'Nequi',
@@ -43,13 +52,6 @@ export const CONFIG = {
       qr: 'assets/pagos/nequi-qr.png',
       holder: 'Kova · Juan Machado',
       hint: 'Escanéalo desde la app de Nequi o de tu banco.',
-    },
-    {
-      id: 'banco-bogota',
-      label: 'Banco de Bogotá',
-      detail: 'Llave',
-      key: '1107849275',
-      hint: 'Transfiere a esta llave desde la app de tu banco.',
     },
   ],
 
@@ -71,6 +73,7 @@ export const CONFIG = {
     supabaseAnonKey: 'sb_publishable_oBeBITx1TCiLsVvvK0kA1g_jTXeV6hW',
     table: 'products',
     bucket: 'product-images',
+    settingsTable: 'store_settings', // ajustes de KOVA CUSTOM, WhatsApp y pagos
     timeoutMs: 6000,                 // si la base no responde a tiempo, se usa la última copia o products.js
   },
 };

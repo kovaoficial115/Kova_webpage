@@ -108,3 +108,21 @@ export async function removeImages(urls) {
   const paths = urls.filter(isStoredImage).map((u) => decodeURIComponent(u.slice(publicPrefix().length)));
   if (paths.length) unwrap(await bucket().remove(paths));
 }
+
+/* ---------- Ajustes de la tienda (KOVA CUSTOM, WhatsApp, pagos) ---------- */
+const SETTINGS = () => B.settingsTable || 'store_settings';
+
+/** Lee todos los ajustes guardados: { custom?, contact?, payments? }. */
+export async function getSettings() {
+  const rows = unwrap(await db().from(SETTINGS()).select('key,value,updated_at'));
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+/** Guarda (crea o reemplaza) un grupo de ajustes. Lo ven todos los clientes en su próxima visita. */
+export async function saveSetting(key, value) {
+  const data = unwrap(await db().from(SETTINGS()).upsert({ key, value }, { onConflict: 'key' }).select('key'));
+  if (!data.length) throw new Error('permission denied: el ajuste no se guardó');
+}
+
+/** ¿El error es porque la tabla de ajustes aún no existe en Supabase? */
+export const isMissingTable = (err) => /PGRST205|42P01|store_settings|schema cache|does not exist/i.test(String(err?.message ?? err?.code ?? ''));

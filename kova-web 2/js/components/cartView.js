@@ -5,26 +5,30 @@
  */
 import { CONFIG } from '../config.js';
 import { getCart, changeQty, removeItem, clearCart, getBuyer, setBuyer, clearBuyer, validateBuyer, getPayment } from '../services/cart.js';
-import { buildOrderMessage, copyText, startWhatsAppCheckout, whatsappUrl } from '../services/contact.js';
+import { buildOrderMessage, copyText, whatsappUrl, newOrderId, attachmentsFor } from '../services/contact.js';
+import { getPayments } from '../services/settings.js';
 import { productUrl } from './productCard.js';
 import { formatPrice, pad } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
 
 export const unitsLabel = (n) => `${pad(n, 2)} ${n === 1 ? 'unidad' : 'unidades'}`;
 
-const variantText = (l) => [l.size && `Talla ${l.size}`, l.color && `Color ${l.color}`].filter(Boolean).join(' · ');
+const variantText = (l) => [l.size && `Talla ${l.size}`, l.color && `Color ${l.color}`, l.custom && l.mode.label].filter(Boolean).join(' · ');
+const lineHref = (l) => (l.custom ? l.url : productUrl({ id: l.id }));
 const lineLabel = (l) => [l.name, variantText(l).toLowerCase()].filter(Boolean).join(', ');
 
-function lineHtml(l, max) {
+function lineHtml(l, cartMax) {
   const variant = variantText(l);
+  const max = l.max ?? cartMax;
   return `
     <li class="cart-line" data-key="${esc(l.key)}">
-      <a class="cart-line__media" href="${productUrl({ id: l.id })}" tabindex="-1" aria-hidden="true">
+      <a class="cart-line__media${l.custom ? ' cart-line__media--custom' : ''}" href="${lineHref(l)}" tabindex="-1" aria-hidden="true">
         <img src="${esc(l.image)}" alt="${esc(`Foto de ${l.name}`)}" width="160" height="200" loading="lazy">
       </a>
       <div class="cart-line__info">
-        <a class="cart-line__name" href="${productUrl({ id: l.id })}">${esc(l.name)}</a>
+        <a class="cart-line__name" href="${lineHref(l)}">${esc(l.name)}</a>
         ${variant ? `<span class="cart-line__variant">${esc(variant)}</span>` : ''}
+        ${l.custom ? `<span class="cart-line__custom">${l.zones.map((z) => `${z.face === 'front' ? 'Frente' : 'Espalda'}: ${esc(z.measures)}`).join(' · ')}<br>Diseño original: se envía por WhatsApp</span>` : ''}
         <span class="cart-line__unit"><span class="cart-line__unitLabel">Precio unitario </span>${formatPrice(l.unitPrice)}</span>
       </div>
       <div class="qty" role="group" aria-label="Cantidad de ${esc(lineLabel(l))}">
@@ -69,10 +73,11 @@ export function paymentDetailHtml(p) {
          <a class="pay-detail__link" href="${esc(p.qr)}" download="kova-${esc(p.id)}-qr.png">Guardar imagen del QR <span class="btn__arrow" aria-hidden="true">↓</span></a>
        </div>`
     : `<div class="pay-detail__text">
-         <span class="pay-detail__label">${esc(p.detail)} ${esc(p.label)}</span>
+         <span class="pay-detail__label">Entidad: ${esc(p.label)} · Método: ${esc(p.detail)}</span>
          <strong class="pay-detail__key">${esc(p.key)}</strong>
+         ${p.holder ? `<span>${esc(p.holder)}</span>` : ''}
          <span>${esc(p.hint ?? '')}</span>
-         <button class="pay-detail__link" type="button" data-copy-key="${esc(p.key)}">Copiar llave</button>
+         <button class="btn btn--light btn--sm pay-detail__copy" type="button" data-copy-key="${esc(p.key)}">Copiar llave <span class="btn__arrow" aria-hidden="true">⧉</span></button>
        </div>`;
   return `<div class="pay-detail${p.qr ? ' pay-detail--qr' : ''}">${body}</div>`;
 }
@@ -83,14 +88,19 @@ document.addEventListener('click', async (e) => {
   if (!btn) return;
   const ok = await copyText(btn.dataset.copyKey);
   toast(ok ? `Llave ${btn.dataset.copyKey} copiada.` : `No se pudo copiar. La llave es ${btn.dataset.copyKey}.`);
+  if (ok) {
+    const prev = btn.innerHTML;
+    btn.textContent = 'Llave copiada ✓';
+    setTimeout(() => { btn.innerHTML = prev; }, 1800);
+  }
 });
 
 /** Aviso junto al botón de finalizar: deja claro qué pasa al pulsarlo. */
 export const copyHintHtml = () => `
   <div class="copy-hint" role="note">
     <span class="copy-hint__ico" aria-hidden="true"><span></span><span></span></span>
-    <p><strong>Al pulsar “Finalizar compra” se abre WhatsApp con tu pedido ya escrito.</strong>
-    Llega al WhatsApp de Kova (${esc(CONFIG.whatsapp.display)}): solo revísalo y pulsa enviar. También lo copiamos, por si necesitas pegarlo.</p>
+    <p><strong>Al pulsar “Finalizar pedido” verás el resumen y el botón “Enviar pedido por WhatsApp”.</strong>
+    Llega al WhatsApp de Kova (${esc(CONFIG.whatsapp.display)}) con tu pedido ya escrito. Si personalizaste camisetas, ahí mismo adjuntas tus diseños originales.</p>
   </div>`;
 
 /** Formulario del comprador. `prefix` evita ids repetidos si hay más de un formulario en la página. */
@@ -112,7 +122,7 @@ export const buyerFormHtml = (prefix) => `
     <fieldset class="field pay" data-payment aria-describedby="${prefix}-payment-error">
       <legend class="field__label">Método de pago <span aria-hidden="true">*</span></legend>
       <div class="pay__options">
-        ${CONFIG.payments.map((p) => `
+        ${getPayments().map((p) => `
           <label class="pay__option">
             <input type="radio" name="payment" value="${esc(p.id)}" required>
             <span><strong>${esc(p.label)}</strong><small>${esc(p.detail)}</small></span>
@@ -181,7 +191,7 @@ export function bindCart(root, { onCheckoutStart } = {}) {
     let text;
     let tone;
     if (!cart.lines.length) { text = 'Agrega al menos una camiseta para finalizar.'; tone = 'off'; }
-    else if (ok) { text = 'Pedido listo para enviar por WhatsApp.'; tone = 'on'; }
+    else if (ok) { text = 'Pedido listo: pulsa «Finalizar pedido» para ver el resumen.'; tone = 'on'; }
     else if (submitted && visible.length) { text = `Falta completar: ${Object.keys(errors).map((f) => FIELD_NAMES[f]).join(' y ')}.`; tone = 'error'; }
     else { text = 'Completa tus datos y elige cómo pagar para finalizar.'; tone = 'off'; }
     state.textContent = text;
@@ -213,13 +223,10 @@ export function bindCart(root, { onCheckoutStart } = {}) {
       (first === 'payment' ? form.querySelector('[name="payment"]') : form.elements[first]).focus();
       return;
     }
-    const message = buildOrderMessage(cart, buyer);
-    const submitters = document.querySelectorAll(`[form="${form.id}"][type="submit"], #${form.id} [type="submit"]`);
-    submitters.forEach((b) => b.setAttribute('aria-busy', 'true'));
-    const result = await startWhatsAppCheckout(message);
-    submitters.forEach((b) => b.removeAttribute('aria-busy'));
+    const orderId = orderIdFor(cart);
+    const message = buildOrderMessage(cart, buyer, orderId);
     onCheckoutStart?.();
-    showCheckoutNotice({ message, payment: buyer.payment, ...result });
+    showCheckoutNotice({ message, orderId, cart, payment: buyer.payment });
   });
 
   fill();
@@ -227,9 +234,24 @@ export function bindCart(root, { onCheckoutStart } = {}) {
   return { refresh, fill };
 }
 
-/* ---------- Aviso de compra iniciada ----------
- * Se reutiliza el diseño del modal de contacto. Nunca dice que el pedido se envió:
- * el cliente tiene que pulsar enviar en WhatsApp. */
+/* ---------- Resumen final y envío por WhatsApp ----------
+ * "Finalizar pedido" abre este resumen. El botón ENVIAR PEDIDO POR WHATSAPP abre el chat de Kova
+ * con el mensaje escrito. Nunca dice que el pedido o los archivos se enviaron ni que está
+ * confirmado: el cliente pulsa enviar, adjunta sus diseños y Kova lo verifica. */
+
+/** Mismo número de pedido mientras el carrito no cambie (si el cliente abre el resumen dos veces). */
+const ORDER_KEY = `${CONFIG.cart.storageKey}.order`;
+function orderIdFor(cart) {
+  const sig = cart.lines.map((l) => `${l.key}x${l.qty}@${l.unitPrice}`).join('|');
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(ORDER_KEY) || 'null');
+    if (saved?.sig === sig && saved.id) return saved.id;
+  } catch { /* sin almacenamiento */ }
+  const id = newOrderId();
+  try { sessionStorage.setItem(ORDER_KEY, JSON.stringify({ sig, id })); } catch { /* sin almacenamiento */ }
+  return id;
+}
+
 let notice;
 
 function createNotice() {
@@ -239,26 +261,31 @@ function createNotice() {
   dialog.innerHTML = `
     <div class="modal__panel grid-lines">
       <button class="modal__close" type="button" data-close aria-label="Cerrar"><span></span><span></span></button>
-      <p class="eyebrow">Compra iniciada</p>
-      <h2 class="modal__title" id="checkout-title">Falta un<br>paso<span class="dot">.</span></h2>
-      <ol class="notice-steps">
-        <li data-step-open></li>
-        <li data-step-copy></li>
-        <li>Kova te confirmará disponibilidad y envío por WhatsApp; después paga y comparte el comprobante en el chat.</li>
-      </ol>
-      <div class="notice-pay" data-notice-pay></div>
-      <p class="notice-warning"><i class="ico ico--destellos" aria-hidden="true"></i> Tu pedido aún no está enviado ni confirmado.</p>
+      <p class="eyebrow">Resumen del pedido · <span data-order-id></span></p>
+      <h2 class="modal__title" id="checkout-title">Envíalo por<br>WhatsApp<span class="dot">.</span></h2>
 
-      <div class="modal__message notice-message">
-        <label class="modal__label" for="checkout-text">Mensaje del pedido</label>
-        <textarea id="checkout-text" class="notice-message__text" readonly rows="8"></textarea>
-        <button class="btn btn--line btn--sm btn--block" type="button" data-copy>Copiar mensaje</button>
+      <div class="notice-files" data-files hidden>
+        <p class="notice-files__title"><i class="ico ico--destellos" aria-hidden="true"></i> Tus diseños se envían por WhatsApp</p>
+        <p class="notice-files__text">Para iniciar la producción necesitamos tus <b>archivos originales</b> (PNG, JPG o WEBP, en la mejor calidad que tengas). La web no los sube a ningún lado: después de enviar el mensaje, adjúntalos en el mismo chat con el clip 📎 → <i>Documento</i> (así WhatsApp no los comprime).</p>
+        <ol class="notice-files__list" data-file-list></ol>
+        <p class="notice-files__tip">Tip: escribe la etiqueta (por ejemplo «Producto 1 · FRENTE») en el mensaje de cada archivo para que sepamos dónde va. Una captura de la previsualización no reemplaza el archivo original.</p>
       </div>
 
+      <ol class="notice-steps" data-steps></ol>
+      <div class="notice-pay" data-notice-pay></div>
+      <p class="notice-warning"><i class="ico ico--destellos" aria-hidden="true"></i> <span data-warning></span></p>
+
+      <details class="modal__message notice-message">
+        <summary class="modal__label">Ver el mensaje que se enviará</summary>
+        <textarea id="checkout-text" class="notice-message__text" readonly rows="10" aria-label="Mensaje del pedido"></textarea>
+        <button class="btn btn--line btn--sm btn--block" type="button" data-copy>Copiar mensaje</button>
+      </details>
+
       <a class="btn btn--primary btn--xl btn--block modal__cta" href="${whatsappUrl()}" target="_blank" rel="noopener" data-open>
-        Abrir WhatsApp con mi pedido <span class="btn__arrow" aria-hidden="true">↗</span>
+        Enviar pedido por WhatsApp <span class="btn__arrow" aria-hidden="true">↗</span>
       </a>
-      <button class="notice-clear" type="button" data-clear>Ya envié mi pedido: vaciar carrito</button>
+      <p class="notice-after" data-after hidden></p>
+      <button class="notice-clear" type="button" data-clear hidden>Ya envié mi pedido y mis archivos: vaciar carrito</button>
     </div>`;
   document.body.append(dialog);
 
@@ -278,38 +305,66 @@ function createNotice() {
     e.currentTarget.textContent = ok ? 'Mensaje copiado' : 'Selecciona el texto y cópialo';
     toast(ok ? 'Mensaje copiado. Pégalo en el chat de WhatsApp.' : 'No se pudo copiar: selecciona el texto y cópialo.');
   });
+
+  // El enlace abre WhatsApp en el mismo clic (sin bloqueos de ventanas). Además se copia el mensaje.
+  dialog.querySelector('[data-open]').addEventListener('click', async () => {
+    const copied = await copyText(area.value);
+    const hasFiles = !dialog.querySelector('[data-files]').hidden;
+    const after = dialog.querySelector('[data-after]');
+    after.hidden = false;
+    after.innerHTML = `<b>Abrimos WhatsApp con tu pedido escrito.</b> Pulsa enviar en el chat${hasFiles ? ' y luego adjunta tus archivos originales como se indica arriba' : ''}.
+      ${copied ? 'Si el mensaje no aparece escrito, pégalo: ya lo copiamos.' : 'Si el mensaje no aparece escrito, cópialo desde «Ver el mensaje».'}
+      ¿No se abrió? Vuelve a pulsar el botón.`;
+    dialog.querySelector('[data-clear]').hidden = false;
+    dialog.querySelector('.modal__cta').firstChild.textContent = 'Abrir WhatsApp de nuevo ';
+  });
   dialog.querySelector('[data-clear]').addEventListener('click', () => {
     clearCart();
     clearBuyer();
+    try { sessionStorage.removeItem(ORDER_KEY); } catch { /* sin almacenamiento */ }
     close();
-    toast('Carrito vacío. ¡Gracias por escribirle a Kova!');
+    toast('Carrito vacío. Kova revisará tu mensaje y te confirmará por WhatsApp.');
   });
   return dialog;
 }
 
-export function showCheckoutNotice({ message, payment, copied, opened }) {
+export function showCheckoutNotice({ message, orderId, cart, payment }) {
   notice ??= createNotice();
+  const files = attachmentsFor(cart);
   const wa = `el WhatsApp de Kova (${CONFIG.whatsapp.display})`;
-  notice.querySelector('[data-step-open]').textContent = opened
-    ? `Abrimos ${wa} con tu pedido ya escrito. Revísalo y pulsa enviar.`
-    : `Abre ${wa} con el botón de abajo: el pedido aparecerá escrito. Revísalo y pulsa enviar.`;
-  notice.querySelector('[data-step-copy]').textContent = copied
-    ? 'Si el mensaje no aparece escrito, pégalo en el chat: ya lo copiamos.'
-    : 'Si el mensaje no aparece escrito, cópialo desde el recuadro de abajo y pégalo en el chat.';
+  notice.querySelector('[data-order-id]').textContent = orderId;
+
+  const filesBox = notice.querySelector('[data-files]');
+  filesBox.hidden = !files.length;
+  notice.querySelector('[data-file-list]').innerHTML = files.map((f) => `
+    <li class="notice-file notice-file--${f.face}">
+      <span class="notice-file__tag">${esc(f.label)}</span>
+      <span class="notice-file__zone">${esc(f.zone)}</span>
+      <span class="notice-file__name">${f.file ? `Archivo que previsualizaste: <b>${esc(f.file)}</b>` : 'Adjunta aquí tu archivo original'}</span>
+    </li>`).join('');
+
+  const steps = [
+    `Pulsa «Enviar pedido por WhatsApp»: se abre ${wa} con este resumen escrito. Revísalo y pulsa enviar.`,
+    files.length ? 'En el mismo chat adjunta tus diseños originales (uno por cada cara indicada arriba).' : null,
+    'Kova revisa el mensaje' + (files.length ? ' y tus archivos' : '') + ', te confirma disponibilidad y envío, y te indica cuándo pagar.',
+    'Pagas con el método elegido y compartes el comprobante en el chat. La confirmación del pago es manual.',
+  ].filter(Boolean);
+  notice.querySelector('[data-steps]').innerHTML = steps.map((t) => `<li>${esc(t)}</li>`).join('');
+
+  notice.querySelector('[data-warning]').textContent = files.length
+    ? 'Tu pedido no está confirmado ni recibido hasta que Kova verifique tu mensaje y tus diseños por WhatsApp.'
+    : 'Tu pedido no está enviado ni confirmado hasta que Kova lo verifique por WhatsApp.';
   notice.querySelector('[data-open]').href = whatsappUrl(message);
-  notice.classList.toggle('is-copy-failed', !copied);
+  notice.querySelector('.modal__cta').firstChild.textContent = 'Enviar pedido por WhatsApp ';
+  notice.querySelector('[data-after]').hidden = true;
+  notice.querySelector('[data-clear]').hidden = true;
   notice.querySelector('[data-notice-pay]').innerHTML = payment
-    ? `<p class="modal__label">Cómo pagar: ${esc(payment.label)}</p>${paymentDetailHtml(payment)}`
+    ? `<p class="modal__label">Cómo pagar: ${esc(payment.label)} · ${esc(payment.detail)}</p>${paymentDetailHtml(payment)}`
     : '';
   notice.querySelector('textarea').value = message;
-  notice.querySelector('[data-copy]').textContent = copied ? 'Copiar de nuevo' : 'Copiar mensaje';
+  notice.querySelector('[data-copy]').textContent = 'Copiar mensaje';
   if (!notice.open) notice.showModal();
   document.body.classList.add('no-scroll');
-  if (!copied) {
-    const area = notice.querySelector('textarea');
-    area.focus();
-    area.select();
-  }
 }
 
 /** Repinta una lista sin perder el foco del botón que el usuario estaba usando. */

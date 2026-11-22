@@ -6,6 +6,8 @@
  *   #/nuevo            Formulario de producto nuevo.
  *   #/editar/<id>      Formulario de un producto existente.
  *   #/duplicar/<id>    Formulario nuevo con los datos de otro producto.
+ *   #/custom           KOVA CUSTOM: modalidades, precios, zonas, colores, tallas, inventario, imágenes.
+ *   #/ajustes          Pagos (información bancaria) y número de WhatsApp Business.
  *
  * Todo cambio se guarda en Supabase y la tienda lo lee de ahí (ver js/services/catalog.js).
  */
@@ -16,6 +18,7 @@ import { formatPrice } from '../../js/utils/format.js';
 import { esc, toast } from '../../js/utils/dom.js';
 import * as api from './api.js';
 import { prepareImage, ACCEPT } from './images.js';
+import { renderCustomSettings, renderStoreSettings, isSettingsDirty, clearSettingsDraft } from './settingsAdmin.js';
 
 const app = document.getElementById('app');
 const dialog = document.getElementById('dialog');
@@ -208,6 +211,11 @@ function shell() {
           <button class="btn btn--line btn--sm" type="button" data-logout>Salir</button>
         </nav>
       </header>
+      <nav class="adm-tabs" aria-label="Secciones">
+        <a href="#/" data-tab="">Productos</a>
+        <a href="#/custom" data-tab="custom">KOVA Custom</a>
+        <a href="#/ajustes" data-tab="ajustes">Pagos y WhatsApp</a>
+      </nav>
       <main class="adm-main s-arena" data-view></main>
     </div>`;
   app.querySelector('[data-logout]').addEventListener('click', async () => {
@@ -503,6 +511,17 @@ const serialize = (d) => JSON.stringify([d.id, d.name, d.category, String(d.pric
 const isDirty = () => Boolean(state.editor && serialize(state.editor) !== state.editor.snapshot);
 
 async function leaveEditorOk() {
+  if (isSettingsDirty()) {
+    const ok = await confirmDialog({
+      title: 'Cambios sin guardar',
+      body: '<p>Tienes cambios sin guardar en esta configuración. Si sales ahora, se perderán.</p>',
+      confirm: 'Salir sin guardar',
+      cancel: 'Seguir editando',
+      danger: true,
+    });
+    if (ok) clearSettingsDraft();
+    return ok;
+  }
   if (!isDirty()) return true;
   return confirmDialog({
     title: 'Cambios sin guardar',
@@ -1083,6 +1102,15 @@ async function route() {
   const hash = location.hash || '#/';
   const [, view, rawId] = hash.match(/^#\/([a-z]*)\/?(.*)$/) ?? [];
   const id = decodeURIComponent(rawId ?? '');
+  shell();
+  app.querySelectorAll('[data-tab]').forEach((a) => {
+    const on = a.dataset.tab === (view === 'custom' || view === 'ajustes' ? view : '');
+    a.classList.toggle('is-active', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  clearSettingsDraft();
+  if (view === 'custom') { state.editor = null; return renderCustomSettings(shell(), { confirmDialog }); }
+  if (view === 'ajustes') { state.editor = null; return renderStoreSettings(shell()); }
   if (!state.loaded) {
     shell().innerHTML = '<div class="adm-boot adm-boot--light"><i class="ico ico--destellos twinkle" aria-hidden="true"></i><span>Cargando productos…</span></div>';
     try { await loadProducts(); } catch (err) {
@@ -1104,7 +1132,7 @@ async function route() {
 
 window.addEventListener('hashchange', async () => {
   if (ignoreHash) { ignoreHash = false; return; }
-  if (state.editor && !(await leaveEditorOk())) {
+  if ((state.editor || isSettingsDirty()) && !(await leaveEditorOk())) {
     ignoreHash = true;
     location.hash = lastHash;
     return;
@@ -1116,7 +1144,7 @@ window.addEventListener('hashchange', async () => {
 });
 
 window.addEventListener('beforeunload', (e) => {
-  if (isDirty()) { e.preventDefault(); e.returnValue = ''; }
+  if (isDirty() || isSettingsDirty()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* =========================================================================

@@ -354,3 +354,11 @@
   .cartpage .cart-line:first-child { border-top: 1px solid var(--fg); }
   .cartpage__empty .btn { width: 100%; }
 }
+
+/* ---------- Banda KOVA CUSTOM en la portada ---------- */
+.custom-band { padding-block: clamp(48px, 7vw, 96px); border-top: 1px solid var(--line); }
+.custom-band__inner { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: end; }
+.custom-band__title { font-size: clamp(56px, 8vw, 128px); margin-top: 16px; }
+.custom-band__copy { display: grid; justify-items: start; gap: 24px; }
+.custom-band__copy p { font-size: 18px; color: var(--muted); max-width: 46ch; }
+@media (max-width: 860px) { .custom-band__inner { grid-template-columns: minmax(0, 1fr); } }

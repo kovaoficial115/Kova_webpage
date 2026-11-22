@@ -793,3 +793,28 @@ body:not([data-page="cart"]) .footer { padding-bottom: 104px; }
 .copy-hint__ico span:first-child { left: 0; top: 0; }
 .copy-hint__ico span + span { left: 6px; top: 6px; border-color: var(--scarlet); }
 @media (max-width: 600px) { .copy-hint { font-size: 12.5px; padding: 9px 10px; } .copy-hint strong { font-size: 13px; } }
+
+/* ---------- KOVA CUSTOM en el carrito y en el resumen final ---------- */
+.cart-line__media--custom { background: var(--arena); }
+.cart-line__media--custom img { object-fit: contain; }
+.cart-line__custom { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.pay-detail__copy { justify-self: start; margin-top: 6px; }
+
+.notice-files { margin: 0 0 18px; padding: 16px; background: var(--arena); color: var(--navy); }
+.notice-files[hidden] { display: none; }
+.notice-files__title { display: flex; align-items: center; gap: 8px; font-family: var(--f-display); font-size: 24px; line-height: 1; text-transform: uppercase; margin-bottom: 8px; }
+.notice-files__title .ico { color: var(--scarlet); font-size: 18px; }
+.notice-files__text, .notice-files__tip { font-size: 14px; }
+.notice-files__tip { margin-top: 10px; font-size: 13px; opacity: .8; }
+.notice-files__list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.notice-file { display: grid; gap: 2px; padding: 10px 12px; border: 1.5px solid var(--navy); background: var(--white); }
+.notice-file__tag { justify-self: start; padding: 3px 8px 2px; background: var(--navy); color: var(--arena); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.notice-file--back .notice-file__tag { background: var(--scarlet); color: var(--white); }
+.notice-file__zone { font-size: 13px; font-weight: 700; }
+.notice-file__name { font-size: 13px; overflow-wrap: anywhere; }
+.notice-message summary { cursor: pointer; margin: 0; }
+.notice-message[open] summary { margin-bottom: 4px; }
+.notice-after { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line-strong); font-size: 14px; color: var(--fg); }
+.notice-after[hidden], .notice-clear[hidden] { display: none; }
+/* El botón de enviar queda siempre a mano aunque el resumen sea largo. */
+.checkout-notice .modal__cta { position: sticky; bottom: 12px; z-index: 2; margin-top: 18px; box-shadow: 0 10px 30px rgb(0 0 31 / .55); }

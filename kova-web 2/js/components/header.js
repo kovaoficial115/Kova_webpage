@@ -7,6 +7,7 @@ const MARQUEE_ITEMS = [
   `@${CONFIG.instagram.handle}`,
   CONFIG.brand.tagline,
   'Drop 01 disponible',
+  'Nuevo: KOVA Custom',
   'Hecho en Colombia',
 ];
 
@@ -23,11 +24,12 @@ export function renderHeader() {
   const links = [
     { href: 'index.html#destacados', label: 'Destacados' },
     { href: 'index.html#catalogo', label: 'Catálogo' },
+    { href: 'custom.html', label: 'KOVA Custom', current: document.body.dataset.page === 'custom' },
     { href: 'index.html#como-comprar', label: 'Cómo comprar' },
     { href: 'index.html#contacto', label: 'Contacto' },
   ];
   const nav = links.map((l, i) => `
-    <li style="--i:${i}"><a href="${l.href}"><span class="nav__num">${String(i + 1).padStart(2, '0')}</span><span class="nav__label">${esc(l.label)}</span></a></li>`).join('');
+    <li style="--i:${i}"><a href="${l.href}"${l.current ? ' aria-current="page" class="is-active"' : ''}><span class="nav__num">${String(i + 1).padStart(2, '0')}</span><span class="nav__label">${esc(l.label)}</span></a></li>`).join('');
 
   return `
     ${marquee()}
