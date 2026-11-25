@@ -14,7 +14,7 @@ export function renderFooter() {
         </div>
         <div class="footer__col">
           <h3 class="footer__title">Catálogo</h3>
-          <ul class="footer__list"><li><a href="index.html#destacados">Destacados</a></li>${cats}<li><a href="index.html#como-comprar">Cómo comprar</a></li></ul>
+          <ul class="footer__list"><li><a href="index.html#destacados">Destacados</a></li>${cats}<li><a href="index.html#como-comprar">Cómo comprar</a></li><li><a href="pedido.html">Mi pedido</a></li><li><a href="condiciones.html">Condiciones de compra</a></li></ul>
         </div>
         <div class="footer__col">
           <h3 class="footer__title">Contacto</h3>

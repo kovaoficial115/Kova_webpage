@@ -24,6 +24,7 @@ export function db() {
 /** Traduce errores técnicos a mensajes claros. */
 export function friendlyError(err) {
   const msg = String(err?.message ?? err ?? '');
+  if (msg.startsWith('KOVA:')) return msg.slice(5);
   if (/Invalid login credentials/i.test(msg)) return 'Correo o contraseña incorrectos.';
   if (/Email not confirmed/i.test(msg)) return 'Confirma tu correo antes de entrar (revisa tu bandeja).';
   if (/duplicate key|23505|already exists/i.test(msg)) return 'Ya existe un producto con ese identificador.';
@@ -49,6 +50,12 @@ export const sendPasswordReset = async (email) =>
   unwrap(await db().auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] }));
 export const updatePassword = async (password) => unwrap(await db().auth.updateUser({ password }));
 export const isAdmin = async () => Boolean(unwrap(await db().rpc('is_admin')));
+/** ¿Tiene algún rol del panel (owner, admin o production)? Si la migración aún no existe, usa is_admin. */
+export async function isStaff() {
+  const { data, error } = await db().rpc('is_staff');
+  if (error) { if (/PGRST202|does not exist|schema cache/i.test(String(error.message))) return isAdmin(); throw error; }
+  return Boolean(data);
+}
 
 /* ---------- Productos ---------- */
 export async function listProducts() {

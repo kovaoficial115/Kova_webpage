@@ -29,7 +29,10 @@ export function rowToProduct(row) {
   if (row.featured) product.featured = true;
   if (row.tag) product.tag = row.tag;
   if (row.available === false) product.available = false;
-  product.published = row.published !== false;
+  // Modalidad de venta (venta normal, preventa, próximamente, agotado, oculto). Ver supabase/migrations/.
+  product.saleMode = row.sale_mode ?? 'normal';
+  if (row.drop_code) product.dropCode = row.drop_code;
+  product.published = row.published !== false && product.saleMode !== 'hidden';
   return product;
 }
 
@@ -51,6 +54,7 @@ export function productToRow(p, position = 0) {
     available: p.available !== false,
     published: p.published !== false,
     position,
+    ...(p.saleMode ? { sale_mode: p.saleMode } : {}),
   };
 }
 

@@ -160,3 +160,37 @@ export async function startWhatsAppCheckout(message) {
   if (win) win.opener = null;
   return { copied: await copying, opened: Boolean(win) };
 }
+
+/* ---------- Mensaje de un pedido ya registrado en la base de datos ---------- */
+
+const money = (n) => (Number.isFinite(n) ? `${formatPrice(n)} COP` : 'por confirmar');
+
+/**
+ * Mensaje para WhatsApp con los datos REALES del pedido registrado (no reemplaza la base de datos).
+ * `order` es la respuesta de get_order_public. `files` (opcional): archivos de KOVA CUSTOM por adjuntar.
+ */
+export function buildRegisteredOrderMessage(order, files = []) {
+  const isPre = order.kind === 'preorder' || order.kind === 'mixed';
+  const lines = [isPre ? 'Hola, KOVA. Acabo de realizar una reserva.' : 'Hola, KOVA. Acabo de realizar un pedido.', '', `Pedido: ${order.number}`];
+  const many = order.items.length > 1;
+  order.items.forEach((it, i) => {
+    if (many) lines.push('', `Producto ${i + 1}: ${it.name.toUpperCase()}${it.kind === 'preorder' ? ' (preventa)' : ''}`);
+    else lines.push(`Producto: ${it.name.toUpperCase()}${it.kind === 'preorder' ? ' (preventa)' : ''}`);
+    if (it.custom?.mode_label) lines.push(`Estampado: ${it.custom.mode_label}`);
+    if (it.color) lines.push(`Color: ${it.color}`);
+    if (it.size) lines.push(`Talla: ${it.size}`);
+    lines.push(`Cantidad: ${it.qty}`);
+  });
+  if (many) lines.push('');
+  if (order.promo_code) lines.push(`Código promocional: ${order.promo_code}`);
+  lines.push(`Total: ${money(order.total)}`);
+  if (order.amount_due_now < order.total) {
+    lines.push(`Anticipo: ${money(order.amount_due_now)}`, `Saldo pendiente: ${money(order.total - order.amount_due_now)}`);
+  }
+  if (order.shipping_amount == null) lines.push(`Envío: ${order.shipping_label || 'por confirmar'}`);
+  if (files.length) {
+    lines.push('', 'Voy a adjuntar mis diseños originales en este chat:', ...files.map((f) => `- ${f.label} (${f.zone})${f.file ? `: «${f.file}»` : ''}`));
+  }
+  lines.push('', 'Quedo atento/a para enviar el comprobante y la confirmación. ¡Gracias!');
+  return lines.join('\n');
+}

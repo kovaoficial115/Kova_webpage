@@ -14,6 +14,7 @@ import { products as fallbackProducts } from '../data/products.js';
 import { categories } from '../data/categories.js';
 import { isRemoteConfigured, fetchPublishedProducts } from './remoteCatalog.js';
 import { settingsReady } from './settings.js';
+import { storefrontReady, preorderInfo } from './storefront.js';
 
 const SNAPSHOT_KEY = 'kova.catalog.snapshot.v1';
 const visible = (list) => list.filter((p) => p.published !== false);
@@ -39,7 +40,7 @@ async function loadProducts() {
 }
 
 // Productos y ajustes (KOVA CUSTOM, WhatsApp, pagos) se piden a la vez.
-const [{ list: products, source }] = await Promise.all([loadProducts(), settingsReady]);
+const [{ list: products, source }] = await Promise.all([loadProducts(), settingsReady, storefrontReady]);
 
 /** De dónde salieron los productos: 'remote' | 'snapshot' | 'local'. */
 export const catalogSource = source;
@@ -53,10 +54,26 @@ export const getCategory = (id) => categories.find((c) => c.id === id);
 /** Categorías que tienen al menos un producto. */
 export const getActiveCategories = () => categories.filter((c) => getByCategory(c.id).length > 0);
 
-/** Disponible salvo que diga `available: false` o que todas sus tallas estén agotadas. */
-export const isAvailable = (product) =>
-  product.available !== false &&
-  !(product.sizes?.length && product.sizes.every((s) => product.soldOutSizes?.includes(s)));
+/**
+ * Cómo se puede comprar un producto ahora:
+ *   { mode: 'normal' | 'preorder' | 'coming_soon' | 'sold_out', canBuy, label, preorder? }
+ * La tienda solo lo usa para mostrar; el servidor vuelve a validarlo todo al crear el pedido.
+ */
+export function purchaseState(product) {
+  const mode = product?.saleMode ?? 'normal';
+  if (mode === 'preorder') {
+    const info = preorderInfo(product);
+    const label = { open: 'Preventa', scheduled: 'Preventa próximamente', sold_out: 'Preventa agotada', paused: 'Preventa en pausa', closed: 'Preventa cerrada' }[info.phase] ?? 'Preventa cerrada';
+    return { mode: 'preorder', canBuy: info.phase === 'open', label, preorder: info };
+  }
+  if (mode === 'coming_soon') return { mode, canBuy: false, label: 'Próximamente' };
+  const soldOut = mode === 'sold_out' || product.available === false ||
+    Boolean(product.sizes?.length && product.sizes.every((s) => product.soldOutSizes?.includes(s)));
+  return soldOut ? { mode: 'sold_out', canBuy: false, label: 'Agotado' } : { mode: 'normal', canBuy: true, label: 'Disponible' };
+}
+
+/** ¿Se puede agregar al carrito ahora? (venta normal disponible o preventa abierta). */
+export const isAvailable = (product) => purchaseState(product).canBuy;
 
 export const getRelated = (product, limit = 4) =>
   products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, limit);
