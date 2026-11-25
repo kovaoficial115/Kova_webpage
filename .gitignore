@@ -1,0 +1,8 @@
+# Caché local de Wrangler (Cloudflare): datos de la cuenta, no van al repositorio público.
+.wrangler/
+**/.wrangler/
+# Variables y secretos locales
+.env
+.env.*
+*.pem
+.DS_Store

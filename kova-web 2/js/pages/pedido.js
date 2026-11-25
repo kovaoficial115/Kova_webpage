@@ -197,7 +197,7 @@ async function load() {
     render(o);
   } catch (err) {
     frame(`<div class="o-card o-error"><h1 class="o-card__title">No pudimos abrir el pedido<span class="dot">.</span></h1><p>${esc(errorText(err))}</p>
-      <button class="btn btn--primary" type="button" onclick="location.reload()">Reintentar</button>
+      <button class="btn btn--primary" type="button" data-reload>Reintentar</button>
       <a class="btn btn--line" href="pedido.html">Mis pedidos</a></div>`);
   }
 }
@@ -205,3 +205,6 @@ async function load() {
 mountLayout();
 window.addEventListener('hashchange', () => location.reload());
 load();
+
+// Botones "Reintentar": sin onclick en línea para que la CSP pueda bloquear scripts inline.
+document.addEventListener('click', (e) => { if (e.target.closest('[data-reload]')) location.reload(); });

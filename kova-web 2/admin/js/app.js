@@ -1195,7 +1195,7 @@ async function start() {
   try { admin = await api.isStaff(); if (admin) await loadRole(); } catch (err) {
     return authFrame(`<h1 class="adm-auth__title">Sin conexión<span class="dot">.</span></h1>
       <p class="adm-auth__text">${esc(api.friendlyError(err))}</p>
-      <button class="btn btn--primary btn--block" type="button" onclick="location.reload()">Reintentar</button>`);
+      <button class="btn btn--primary btn--block" type="button" data-reload>Reintentar</button>`);
   }
   if (!admin) return renderDenied(session.user.email);
   lastHash = location.hash;
@@ -1219,3 +1219,6 @@ async function boot() {
 
 window.kovaAdmin = { confirmDialog };
 boot();
+
+// Botones "Reintentar": sin onclick en línea para que la CSP pueda bloquear scripts inline.
+document.addEventListener('click', (e) => { if (e.target.closest('[data-reload]')) location.reload(); });

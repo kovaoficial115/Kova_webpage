@@ -1,0 +1,17 @@
+# Cabeceras de seguridad para Cloudflare Pages (se aplican en el próximo deploy).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://vfdpkmqncbhrauqtrnay.supabase.co; font-src 'self' data:; connect-src 'self' https://vfdpkmqncbhrauqtrnay.supabase.co wss://vfdpkmqncbhrauqtrnay.supabase.co https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# El panel no debe aparecer en buscadores ni guardarse en caché compartida.
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+# El seguimiento de pedidos tampoco se indexa.
+/pedido.html
+  X-Robots-Tag: noindex, nofollow

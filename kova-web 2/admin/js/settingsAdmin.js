@@ -57,7 +57,7 @@ async function loadSettings(view, title) {
            <p>Abre Supabase → SQL Editor, pega el archivo <code>supabase/schema.sql</code> del repositorio y pulsa Run (se puede ejecutar de nuevo sin perder datos). Luego recarga esta página.</p>
            <p>Mientras tanto la tienda funciona con los valores iniciales (precios oficiales, Llave Nu y el WhatsApp actual).</p>`
         : `<b>No se pudieron cargar los ajustes.</b><p>${esc(api.friendlyError(err))}</p>`}
-      <button class="btn btn--primary btn--sm" type="button" onclick="location.reload()">Reintentar</button></div></div>`;
+      <button class="btn btn--primary btn--sm" type="button" data-reload>Reintentar</button></div></div>`;
     return null;
   }
 }
