@@ -13,5 +13,8 @@
   Cache-Control: no-store
 
 # El seguimiento de pedidos tampoco se indexa.
+/pedido
+  X-Robots-Tag: noindex, nofollow
+
 /pedido.html
   X-Robots-Tag: noindex, nofollow
