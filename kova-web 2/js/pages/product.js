@@ -131,7 +131,7 @@ function renderPreorder(state) {
         <span class="countdown__label">${info.phase === 'scheduled' ? 'Abre en' : 'Cierra en'}</span>
         <span class="countdown__val" data-cd></span></div>` : ''}
       <dl class="preorder__facts">${rows}</dl>
-      <p class="preorder__notice"><i class="ico ico--destellos" aria-hidden="true"></i> Este producto se fabrica para la preventa: <b>no está listo para despacho inmediato</b>. Tu reserva se confirma cuando KOVA verifica tu pago.</p>
+      <p class="preorder__notice"><i class="ico ico--destellos" aria-hidden="true"></i><span>Este producto se fabrica para la preventa: <b>no está listo para despacho inmediato</b>. Tu reserva se confirma cuando KOVA verifica tu pago.</span></p>
       ${c.terms ? `<details class="preorder__terms"><summary>Condiciones de esta preventa</summary><p>${esc(c.terms).replace(/\n/g, '<br>')}</p></details>` : ''}
     </section>`;
 }

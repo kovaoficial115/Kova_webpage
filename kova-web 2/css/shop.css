@@ -219,3 +219,7 @@ a.card__add { text-decoration: none; }
   .o-banner { flex-direction: column; }
   .countdown__val { font-size: 26px; }
 }
+
+/* Seguimiento: enviar otro comprobante (plegado mientras uno está en revisión) */
+.o-more > summary { cursor: pointer; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; }
+.o-more[open] > summary { margin-bottom: 16px; }

@@ -62,10 +62,30 @@ function render(o) {
   const confirmed = !['pending_confirmation', 'cancelled', 'expired'].includes(o.fulfillment_status);
   const pending = o.payments.filter((p) => ['submitted', 'verifying'].includes(p.status));
   const isPre = o.kind === 'preorder' || o.kind === 'mixed';
-  const payNow = o.paid_total === 0 ? o.amount_due_now : balance;
+  const pendingSum = o.payments.filter((p) => ['submitted', 'verifying'].includes(p.status)).reduce((n, p) => n + p.amount, 0);
+  const payNow = Math.max((o.paid_total === 0 ? o.amount_due_now : balance) - pendingSum, 0) || Math.max(balance - pendingSum, 0) || balance;
   const files = (() => { try { const f = JSON.parse(sessionStorage.getItem('kova.orderFiles') || 'null'); return f?.number === o.number ? f.files : []; } catch { return []; } })();
   const waMsg = buildRegisteredOrderMessage(o, files);
   const method = getPayments().find((p) => p.id === o.payment_method) ?? getPayments()[0];
+  const payForm = () => `
+          <p class="o-pay__amount"><span>Valor a transferir</span><b>${formatPrice(payNow)}</b></p>
+          ${method ? paymentDetailHtml(method) : ''}
+          <form class="o-upload" data-upload novalidate>
+            <div class="field"><label class="field__label" for="up-file">Comprobante (imagen o PDF, máx. 8 MB) <span aria-hidden="true">*</span></label>
+              <input class="field__input o-upload__file" id="up-file" name="file" type="file" accept="image/*,application/pdf" required></div>
+            <div class="co-two">
+              <div class="field"><label class="field__label" for="up-amount">Valor transferido <span aria-hidden="true">*</span></label>
+                <input class="field__input" id="up-amount" name="amount" inputmode="numeric" value="${payNow}" required></div>
+              <div class="field"><label class="field__label" for="up-date">Fecha de la transferencia <span aria-hidden="true">*</span></label>
+                <input class="field__input" id="up-date" name="date" type="date" required value="${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })}"></div>
+            </div>
+            <div class="field"><label class="field__label" for="up-ref">Referencia o número de aprobación</label>
+              <input class="field__input" id="up-ref" name="reference" maxlength="80" placeholder="Opcional, ayuda a verificar más rápido"></div>
+            <p class="field__error" data-up-error></p>
+            <button class="btn btn--primary btn--block" type="submit" data-up-btn>Enviar comprobante <i class="ico ico--destellos" aria-hidden="true"></i></button>
+            <p class="o-upload__hint">El comprobante se guarda de forma privada: solo lo ve el equipo de KOVA.</p>
+          </form>
+`;
 
   frame(`
     ${isNew ? `<div class="o-banner s-navy grid-lines" role="status">
@@ -91,27 +111,12 @@ function render(o) {
           ${o.tracking_number ? `<p class="o-note">Guía de envío: <b>${esc(o.tracking_number)}</b>${o.carrier ? ` (${esc(o.carrier)})` : ''}</p>` : ''}
         </section>
 
-        ${o.can_upload && balance > 0 ? `
+        ${o.can_upload && balance > 0 && pending.length ? `
+        <section class="o-card o-pay" id="pagar"><details class="o-more"><summary>¿Necesitas enviar otro comprobante?</summary>${payForm()}</details></section>`
+        : o.can_upload && balance > 0 ? `
         <section class="o-card o-pay" aria-labelledby="o-pay" id="pagar">
-          <h2 class="o-card__title" id="o-pay">${o.paid_total === 0 ? 'Pagar y subir comprobante' : 'Pagar el saldo'}</h2>
-          <p class="o-pay__amount"><span>Valor a transferir</span><b>${formatPrice(payNow)}</b></p>
-          ${method ? paymentDetailHtml(method) : ''}
-          <form class="o-upload" data-upload novalidate>
-            <div class="field"><label class="field__label" for="up-file">Comprobante (imagen o PDF, máx. 8 MB) <span aria-hidden="true">*</span></label>
-              <input class="field__input o-upload__file" id="up-file" name="file" type="file" accept="image/*,application/pdf" required></div>
-            <div class="co-two">
-              <div class="field"><label class="field__label" for="up-amount">Valor transferido <span aria-hidden="true">*</span></label>
-                <input class="field__input" id="up-amount" name="amount" inputmode="numeric" value="${payNow}" required></div>
-              <div class="field"><label class="field__label" for="up-date">Fecha de la transferencia <span aria-hidden="true">*</span></label>
-                <input class="field__input" id="up-date" name="date" type="date" required value="${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })}"></div>
-            </div>
-            <div class="field"><label class="field__label" for="up-ref">Referencia o número de aprobación</label>
-              <input class="field__input" id="up-ref" name="reference" maxlength="80" placeholder="Opcional, ayuda a verificar más rápido"></div>
-            <p class="field__error" data-up-error></p>
-            <button class="btn btn--primary btn--block" type="submit" data-up-btn>Enviar comprobante <i class="ico ico--destellos" aria-hidden="true"></i></button>
-            <p class="o-upload__hint">El comprobante se guarda de forma privada: solo lo ve el equipo de KOVA.</p>
-          </form>
-        </section>` : ''}
+          <h2 class="o-card__title" id="o-pay">${o.paid_total === 0 ? 'Pagar y subir comprobante' : 'Pagar el saldo'}</h2>${payForm()}</section>` : ''}
+
 
         <section class="o-card" aria-labelledby="o-hist">
           <h2 class="o-card__title" id="o-hist">Historial</h2>

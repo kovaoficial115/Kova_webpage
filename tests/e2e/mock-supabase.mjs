@@ -21,11 +21,11 @@ const q = (v) => { const tag = `q${crypto.randomBytes(4).toString('hex')}`; retu
 const ident = (s) => { if (!/^[a-z_][a-z0-9_]*$/i.test(s)) throw new Error(`identificador inválido: ${s}`); return `"${s}"`; };
 
 function sql(statement, { role = 'anon', sub = '', headers = {} } = {}) {
-  const full = `begin; set local role ${role === 'authenticated' ? 'authenticated' : 'anon'};
-    select set_config('request.jwt.claim.sub', ${q(sub)}, true), set_config('request.jwt.claim.role', ${q(role)}, true),
-           set_config('request.headers', ${q(JSON.stringify(headers))}, true) \\g /dev/null
-    ${statement};
-    commit;`;
+  // Un solo -c = una sola transacción implícita; psql imprime solo el resultado de la última sentencia.
+  const full = `set role ${role === 'authenticated' ? 'authenticated' : 'anon'};
+    select set_config('request.jwt.claim.sub', ${q(sub)}, false), set_config('request.jwt.claim.role', ${q(role)}, false),
+           set_config('request.headers', ${q(JSON.stringify(headers))}, false);
+    ${statement}`;
   const r = spawnSync('psql', [...PSQL, '-c', full], { encoding: 'utf8' });
   if (r.status !== 0) {
     const msg = (r.stderr.match(/ERROR:\s+(.*)/) || [])[1] || r.stderr.trim();
