@@ -53,26 +53,75 @@ function claims(req) {
   return { role: 'anon', sub: '' };
 }
 
-function filters(params) {
+// ---------- Traducción mínima de PostgREST a SQL (con relaciones simples) ----------
+const colCache = {};
+function columnsOf(table) {
+  if (!colCache[table]) {
+    const out = spawnSync('psql', [...PSQL, '-c', `select coalesce(json_agg(column_name), '[]') from information_schema.columns where table_schema = 'public' and table_name = '${table}'`], { encoding: 'utf8' }).stdout;
+    colCache[table] = JSON.parse(out);
+  }
+  return colCache[table];
+}
+const singular = (t) => t.replace(/s$/, '');
+/** Relación entre base y rel: a-uno (base.rel_id) o a-muchos (rel.base_id). */
+function relation(base, rel, alias) {
+  if (columnsOf(base).includes(`${singular(rel)}_id`)) return { one: true, on: `r.id = ${alias}.${ident(`${singular(rel)}_id`)}` };
+  return { one: false, on: `r.${ident(`${singular(base)}_id`)} = ${alias}.id` };
+}
+function splitTop(str) {
+  const out = []; let depth = 0; let cur = '';
+  for (const ch of str) { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && depth === 0) { out.push(cur); cur = ''; } else cur += ch; }
+  if (cur) out.push(cur); return out.map((x) => x.trim()).filter(Boolean);
+}
+function selectList(base, sel, alias = 'b') {
+  if (!sel || sel === '*') return { cols: `${alias}.*`, inner: [] };
+  const cols = []; const inner = [];
+  for (const part of splitTop(sel)) {
+    const m = part.match(/^([a-z_]+)(!inner)?\((.*)\)$/);
+    if (!m) { cols.push(part === '*' ? `${alias}.*` : `${alias}.${ident(part)}`); continue; }
+    const [, rel, inn, sub] = m; const r = relation(base, rel, alias);
+    const subCols = splitTop(sub).map((c) => (c === '*' ? 'r.*' : `r.${ident(c)}`)).join(', ');
+    cols.push(r.one
+      ? `(select to_jsonb(x) from (select ${subCols} from public.${ident(rel)} r where ${r.on}) x) as ${ident(rel)}`
+      : `(select coalesce(jsonb_agg(to_jsonb(x)), '[]') from (select ${subCols} from public.${ident(rel)} r where ${r.on}) x) as ${ident(rel)}`);
+    if (inn) inner.push({ rel, on: r.on });
+  }
+  return { cols: cols.join(', '), inner };
+}
+function cond(colSql, opval) {
+  let [op, ...rest] = opval.split('.'); let val = rest.join('.'); let neg = false;
+  if (op === 'not') { neg = true; [op, ...rest] = val.split('.'); val = rest.join('.'); }
+  let c;
+  if (op === 'eq') c = `${colSql}::text = ${q(val)}`;
+  else if (op === 'neq') c = `${colSql}::text <> ${q(val)}`;
+  else if (op === 'gte') c = `${colSql} >= ${q(val)}`;
+  else if (op === 'lte') c = `${colSql} <= ${q(val)}`;
+  else if (op === 'lt') c = `${colSql} < ${q(val)}`;
+  else if (op === 'gt') c = `${colSql} > ${q(val)}`;
+  else if (op === 'is') c = `${colSql} is ${val === 'null' ? 'null' : val === 'true' ? 'true' : 'false'}`;
+  else if (op === 'ilike' || op === 'like') c = `${colSql}::text ${op} ${q(val.replace(/\*/g, '%'))}`;
+  else if (op === 'in') c = `${colSql}::text = any(${q(`{${val.replace(/^\(|\)$/g, '')}}`)}::text[])`;
+  else throw new Error(`filtro no soportado: ${op}`);
+  return neg ? `not (${c})` : c;
+}
+function filters(params, base = null, alias = 'b') {
   const where = [];
   for (const [k, v] of params) {
     if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
-    const [op, ...rest] = v.split('.'); const val = rest.join('.');
-    const col = ident(k);
-    if (op === 'eq') where.push(`${col}::text = ${q(val)}`);
-    else if (op === 'neq') where.push(`${col}::text <> ${q(val)}`);
-    else if (op === 'gte') where.push(`${col} >= ${q(val)}`);
-    else if (op === 'lte') where.push(`${col} <= ${q(val)}`);
-    else if (op === 'lt') where.push(`${col} < ${q(val)}`);
-    else if (op === 'gt') where.push(`${col} > ${q(val)}`);
-    else if (op === 'is') where.push(`${col} is ${val === 'null' ? 'null' : val === 'true' ? 'true' : 'false'}`);
-    else if (op === 'ilike') where.push(`${col}::text ilike ${q(val.replace(/\*/g, '%'))}`);
-    else if (op === 'in') where.push(`${col}::text = any(${q(`{${val.slice(1, -1)}}`)}::text[])`);
-    else throw new Error(`filtro no soportado: ${op}`);
+    if (k === 'or') {
+      where.push(`(${splitTop(v.replace(/^\(|\)$/g, '')).map((x) => { const [c, ...r] = x.split('.'); return cond(`${alias}.${ident(c)}`, r.join('.')); }).join(' or ')})`);
+      continue;
+    }
+    if (k.includes('.')) {   // filtro sobre una relación a-uno: orders.fulfillment_status
+      const [rel, col] = k.split('.'); const r = relation(base, rel, alias);
+      where.push(`exists (select 1 from public.${ident(rel)} r where ${r.on} and ${cond(`r.${ident(col)}`, v)})`);
+      continue;
+    }
+    where.push(cond(`${alias}.${ident(k)}`, v));
   }
-  return where.length ? ` where ${where.join(' and ')}` : '';
+  return where;
 }
-const orderBy = (o) => (o ? ` order by ${o.split(',').map((p) => { const [c, dir, nulls] = p.split('.'); return `${ident(c)} ${dir === 'desc' ? 'desc' : 'asc'}${nulls === 'nullslast' ? ' nulls last' : ''}`; }).join(', ')}` : '');
+const orderBy = (o) => (o ? ` order by ${o.split(',').map((p) => { const [c, dir, nulls] = p.split('.'); return `${ident(c)} ${dir === 'desc' ? 'desc' : 'asc'}${nulls === 'nullslast' ? ' nulls last' : nulls === 'nullsfirst' ? ' nulls first' : ''}`; }).join(', ')}` : '');
 const cols = (s) => (!s || s === '*' ? '*' : s.split(',').map((c) => ident(c.trim())).join(', '));
 
 function send(res, status, body, headers = {}) {
@@ -134,7 +183,8 @@ const server = http.createServer(async (req, res) => {
     if (m && req.method === 'GET') {
       const file = path.join(FILES, m[1], decodeURIComponent(m[2]));
       if (!fs.existsSync(file)) return send(res, 404, {});
-      res.writeHead(200, { ...cors, 'Content-Type': 'application/octet-stream' }); return res.end(fs.readFileSync(file));
+      const type = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', pdf: 'application/pdf' }[file.split('.').pop()] ?? 'application/octet-stream';
+      res.writeHead(200, { ...cors, 'Content-Type': type }); return res.end(fs.readFileSync(file));
     }
     m = url.pathname.match(/^\/storage\/v1\/object\/([^/]+)\/(.+)$/);
     if (m && (req.method === 'POST' || req.method === 'PUT')) {
@@ -170,35 +220,47 @@ const server = http.createServer(async (req, res) => {
     // ---------- Tablas ----------
     m = url.pathname.match(/^\/rest\/v1\/([a-z_]+)$/);
     if (m) {
-      const t = `public.${ident(m[1])}`; const p = url.searchParams;
+      const name = m[1]; const t = `public.${ident(name)}`; const p = url.searchParams;
       const single = /vnd\.pgrst\.object/.test(req.headers.accept || '');
-      const ret = (out) => {
+      const prefer = req.headers.prefer || '';
+      const ret = (out, total = null) => {
         const rows = JSON.parse(out || '[]');
         if (single) return rows.length === 1 ? send(res, 200, rows[0]) : send(res, 406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' });
-        return send(res, 200, rows, { 'Content-Range': `0-${Math.max(rows.length - 1, 0)}/*` });
+        const off = Number(p.get('offset') || 0);
+        const range = { 'Content-Range': `${rows.length ? `${off}-${off + rows.length - 1}` : '*'}/${total ?? '*'}` };
+        if (req.method === 'HEAD') { res.writeHead(200, { ...cors, ...range }); return res.end(); }
+        return send(res, 200, /return=minimal/.test(prefer) ? '' : rows, range);
       };
-      if (req.method === 'GET') {
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        const { cols: sel, inner } = selectList(name, p.get('select'));
+        const where = [...filters(p, name), ...inner.map((i) => `exists (select 1 from public.${ident(i.rel)} r where ${i.on})`)];
+        const w = where.length ? ` where ${where.join(' and ')}` : '';
         const lim = p.get('limit') ? ` limit ${Number(p.get('limit'))}` : '';
         const off = p.get('offset') ? ` offset ${Number(p.get('offset'))}` : '';
-        return ret(sql(`select coalesce(jsonb_agg(x), '[]') from (select ${cols(p.get('select'))} from ${t}${filters(p)}${orderBy(p.get('order'))}${lim}${off}) x`, { ...who, headers }));
+        const total = /count=exact/.test(prefer) ? Number(sql(`select count(*) from ${t} b${w}`, { ...who, headers })) : null;
+        if (req.method === 'HEAD') return ret('[]', total);
+        return ret(sql(`select coalesce(jsonb_agg(x), '[]') from (select ${sel} from ${t} b${w}${orderBy(p.get('order'))}${lim}${off}) x`, { ...who, headers }), total);
       }
+      const where = filters(p, name); const w = where.length ? ` where ${where.join(' and ')}` : '';
+      const { cols: retSel } = selectList(name, p.get('select'), name);
+      const returning = retSel.replaceAll(`${name}.`, '');
       if (req.method === 'POST') {
         const b = body(); const list = Array.isArray(b) ? b : [b];
         const keys = [...new Set(list.flatMap((o) => Object.keys(o)))].map(ident);
-        const prefer = req.headers.prefer || '';
         let conflict = '';
         if (/resolution=merge-duplicates/.test(prefer)) conflict = ` on conflict (${p.get('on_conflict').split(',').map(ident).join(', ')}) do update set ${keys.map((k) => `${k} = excluded.${k}`).join(', ')}`;
         if (/resolution=ignore-duplicates/.test(prefer)) conflict = ' on conflict do nothing';
-        return ret(sql(`with ins as (insert into ${t} (${keys.join(', ')}) select ${keys.join(', ')} from jsonb_populate_recordset(null::${t}, ${q(JSON.stringify(list))}::jsonb)${conflict} returning *)
+        return ret(sql(`with ins as (insert into ${t} (${keys.join(', ')}) select ${keys.join(', ')} from jsonb_populate_recordset(null::${t}, ${q(JSON.stringify(list))}::jsonb)${conflict} returning ${returning === '*' ? '*' : returning})
           select coalesce(jsonb_agg(ins), '[]') from ins`, { ...who, headers }));
       }
       if (req.method === 'PATCH') {
         const b = body(); const keys = Object.keys(b).map(ident);
-        return ret(sql(`with up as (update ${t} set (${keys.join(', ')}${keys.length === 1 ? ', ' + keys[0] : ''}) = (select ${keys.join(', ')}${keys.length === 1 ? ', ' + keys[0] : ''} from jsonb_populate_record(null::${t}, ${q(JSON.stringify(b))}::jsonb))${filters(p)} returning *)
+        const set = keys.map((k) => `${k} = src.${k}`).join(', ');
+        return ret(sql(`with up as (update ${t} b set ${set} from (select * from jsonb_populate_record(null::${t}, ${q(JSON.stringify(b))}::jsonb)) src${w} returning b.*)
           select coalesce(jsonb_agg(up), '[]') from up`, { ...who, headers }));
       }
       if (req.method === 'DELETE') {
-        return ret(sql(`with d as (delete from ${t}${filters(p)} returning *) select coalesce(jsonb_agg(d), '[]') from d`, { ...who, headers }));
+        return ret(sql(`with d as (delete from ${t} b${w} returning b.*) select coalesce(jsonb_agg(d), '[]') from d`, { ...who, headers }));
       }
     }
     send(res, 404, { message: `no simulado: ${req.method} ${url.pathname}` });

@@ -6,3 +6,4 @@ update public.preorder_campaigns set opens_at = now() - interval '1 hour', close
 select public.admin_campaign_status((select id from public.preorder_campaigns where slug='psyche-01'), 'active');
 insert into public.promo_codes (code, name, discount_type, percent, status, starts_at)
   values ('prueba10', 'Prueba local', 'percent', 10, 'active', now() - interval '1 hour');
+insert into public.admins (user_id, role) values ('00000000-0000-0000-0000-0000000000b2', 'production') on conflict do nothing;

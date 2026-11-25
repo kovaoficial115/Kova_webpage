@@ -19,6 +19,15 @@ import { esc, toast } from '../../js/utils/dom.js';
 import * as api from './api.js';
 import { prepareImage, ACCEPT } from './images.js';
 import { renderCustomSettings, renderStoreSettings, isSettingsDirty, clearSettingsDraft } from './settingsAdmin.js';
+import { loadRole, isAdminRole, getRole } from './ops.js';
+import { renderOrders, renderOrder } from './orders.js';
+import { renderCampaigns, renderCampaign } from './campaigns.js';
+import { renderPromos, renderPromo, renderPromoStats } from './promos.js';
+import { renderProduction } from './production.js';
+import { renderDashboard } from './dashboard.js';
+import { renderCustomers } from './customers.js';
+import { renderInventoryOps, SALE_MODES } from './inventory.js';
+import { renderConfiguration } from './configuration.js';
 
 const app = document.getElementById('app');
 const dialog = document.getElementById('dialog');
@@ -196,25 +205,32 @@ function renderDenied(email) {
  * Estructura del panel
  * ========================================================================= */
 
+// [ruta, nombre, visible para el rol producción]
+const TABS = [
+  ['dashboard', 'Dashboard'], ['', 'Productos'], ['inventario', 'Inventario'], ['pedidos', 'Pedidos'], ['preventas', 'Preventas'],
+  ['codigos', 'Códigos'], ['produccion', 'Producción', true], ['clientes', 'Clientes'], ['custom', 'KOVA Custom'],
+  ['estadisticas', 'Estadísticas'], ['configuracion', 'Configuración'],
+];
+// Rutas de detalle → pestaña que se resalta.
+const TAB_OF = { pedido: 'pedidos', preventa: 'preventas', codigo: 'codigos', 'codigo-stats': 'codigos', ajustes: 'configuracion', nuevo: '', editar: '', duplicar: '' };
+
 function shell() {
   if (app.querySelector('.adm-shell')) return app.querySelector('[data-view]');
   app.innerHTML = `
     <div class="adm-shell">
       <header class="adm-top s-navy">
-        <a class="adm-top__brand" href="#/" aria-label="Inventario">
+        <a class="adm-top__brand" href="#/dashboard" aria-label="Dashboard">
           <img src="../${esc(CONFIG.brand.logo)}" alt="KOVA" width="200" height="60">
           <span class="adm-top__badge">Admin</span>
         </a>
         <nav class="adm-top__nav" aria-label="Panel">
           <a class="adm-top__link" href="../index.html" target="_blank" rel="noopener">Ver tienda <span aria-hidden="true">↗</span></a>
-          <span class="adm-top__user" title="${esc(state.user?.email ?? '')}">${esc(state.user?.email ?? '')}</span>
+          <span class="adm-top__user" title="${esc(state.user?.email ?? '')}">${esc(state.user?.email ?? '')}${getRole() && getRole() !== 'owner' ? ` · ${esc(getRole())}` : ''}</span>
           <button class="btn btn--line btn--sm" type="button" data-logout>Salir</button>
         </nav>
       </header>
       <nav class="adm-tabs" aria-label="Secciones">
-        <a href="#/" data-tab="">Productos</a>
-        <a href="#/custom" data-tab="custom">KOVA Custom</a>
-        <a href="#/ajustes" data-tab="ajustes">Pagos y WhatsApp</a>
+        ${(isAdminRole() ? TABS : TABS.filter((t) => t[2])).map(([tab, label]) => `<a href="#/${tab}" data-tab="${tab}">${label}</a>`).join('')}
       </nav>
       <main class="adm-main s-arena" data-view></main>
     </div>`;
@@ -268,7 +284,7 @@ function renderInventory() {
       <div class="adm-head">
         <div>
           <p class="eyebrow">Catálogo en línea</p>
-          <h1 class="adm-head__title">Inventario<span class="dot">.</span></h1>
+          <h1 class="adm-head__title">Productos<span class="dot">.</span></h1>
         </div>
         <a class="btn btn--primary" href="#/nuevo">Nuevo producto <span class="btn__arrow" aria-hidden="true">+</span></a>
       </div>
@@ -334,9 +350,10 @@ function renderInventory() {
 }
 
 function statusPill(p) {
-  return p.published
+  return (p.published
     ? '<span class="adm-pill adm-pill--on">Publicado</span>'
-    : '<span class="adm-pill adm-pill--off">Oculto</span>';
+    : '<span class="adm-pill adm-pill--off">Oculto</span>')
+    + (p.saleMode && !['normal', 'hidden'].includes(p.saleMode) ? ` <a class="adm-pill" href="#/inventario" title="Cambiar en Inventario">${esc(SALE_MODES[p.saleMode])}</a>` : '');
 }
 
 function renderList() {
@@ -545,7 +562,7 @@ function renderEditor(draft) {
     <form class="adm-wrap adm-editor" data-editor novalidate>
       <div class="adm-head">
         <div>
-          <a class="adm-crumb" href="#/"><span class="btn__arrow" aria-hidden="true">←</span> Inventario</a>
+          <a class="adm-crumb" href="#/"><span class="btn__arrow" aria-hidden="true">←</span> Productos</a>
           <h1 class="adm-head__title">${title}<span class="dot">.</span></h1>
         </div>
         ${!d.isNew ? `<a class="adm-link" href="../producto.html#${encodeURIComponent(d.originalId)}" target="_blank" rel="noopener">Ver en la tienda ↗</a>` : ''}
@@ -1099,16 +1116,35 @@ const go = (hash) => {
 
 async function route() {
   if (!state.user) return;
-  const hash = location.hash || '#/';
-  const [, view, rawId] = hash.match(/^#\/([a-z]*)\/?(.*)$/) ?? [];
+  const hash = location.hash || (isAdminRole() ? '#/dashboard' : '#/produccion');
+  const [, view, rawId] = hash.split('?')[0].match(/^#\/([a-z-]*)\/?(.*)$/) ?? [];
   const id = decodeURIComponent(rawId ?? '');
   shell();
+  const tab = view in TAB_OF ? TAB_OF[view] : view ?? '';
   app.querySelectorAll('[data-tab]').forEach((a) => {
-    const on = a.dataset.tab === (view === 'custom' || view === 'ajustes' ? view : '');
+    const on = a.dataset.tab === tab;
     a.classList.toggle('is-active', on);
-    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (on) { a.setAttribute('aria-current', 'page'); a.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); } else a.removeAttribute('aria-current');
   });
   clearSettingsDraft();
+  const v = shell();
+  if (!isAdminRole() && view !== 'produccion') { location.hash = '#/produccion'; return; }
+  const ops = {
+    dashboard: () => renderDashboard(v),
+    estadisticas: () => renderDashboard(v, { full: true }),
+    pedidos: () => renderOrders(v),
+    pedido: () => renderOrder(v, id),
+    preventas: () => renderCampaigns(v),
+    preventa: () => renderCampaign(v, id),
+    codigos: () => renderPromos(v),
+    codigo: () => renderPromo(v, id),
+    'codigo-stats': () => renderPromoStats(v, id),
+    produccion: () => renderProduction(v),
+    clientes: () => renderCustomers(v),
+    inventario: () => renderInventoryOps(v),
+    configuracion: () => renderConfiguration(v),
+  };
+  if (ops[view]) { state.editor = null; window.scrollTo(0, 0); return ops[view](); }
   if (view === 'custom') { state.editor = null; return renderCustomSettings(shell(), { confirmDialog }); }
   if (view === 'ajustes') { state.editor = null; return renderStoreSettings(shell()); }
   if (!state.loaded) {
@@ -1156,7 +1192,7 @@ async function start() {
   if (!session) { state.user = null; return renderLogin(); }
   state.user = session.user;
   let admin = false;
-  try { admin = await api.isAdmin(); } catch (err) {
+  try { admin = await api.isStaff(); if (admin) await loadRole(); } catch (err) {
     return authFrame(`<h1 class="adm-auth__title">Sin conexión<span class="dot">.</span></h1>
       <p class="adm-auth__text">${esc(api.friendlyError(err))}</p>
       <button class="btn btn--primary btn--block" type="button" onclick="location.reload()">Reintentar</button>`);
@@ -1181,4 +1217,5 @@ async function boot() {
   try { await start(); } catch (err) { renderLogin(api.friendlyError(err)); }
 }
 
+window.kovaAdmin = { confirmDialog };
 boot();

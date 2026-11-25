@@ -465,14 +465,15 @@ do $$
 declare t text;
 begin
   foreach t in array array['product_variants', 'preorder_campaigns', 'preorder_products', 'preorder_variant_limits',
-    'customers', 'orders', 'order_items', 'payments', 'order_history', 'inventory_movements']
+    'inventory_movements']
   loop
     execute format('drop policy if exists "staff lee" on public.%I', t);
     execute format('create policy "staff lee" on public.%I for select to authenticated using (public.is_staff())', t);
     execute format('grant select on public.%I to authenticated', t);
   end loop;
-  -- Solo owner/admin: costos, códigos, ajustes privados y auditoría.
-  foreach t in array array['product_costs', 'promo_codes', 'promo_redemptions', 'promo_applications', 'admin_settings', 'audit_logs']
+  -- Solo owner/admin: datos personales (clientes, pedidos, pagos, historial), costos, códigos, ajustes y auditoría.
+  -- El rol producción ve los pedidos sin datos personales a través de admin_production_orders().
+  foreach t in array array['customers', 'orders', 'order_items', 'payments', 'order_history', 'product_costs', 'promo_codes', 'promo_redemptions', 'promo_applications', 'admin_settings', 'audit_logs']
   loop
     execute format('drop policy if exists "admin lee" on public.%I', t);
     execute format('create policy "admin lee" on public.%I for select to authenticated using (public.is_admin())', t);
@@ -523,7 +524,7 @@ grant execute on function public.proof_slot_open(text) to anon, authenticated;
 drop policy if exists "payment-proofs: subida con cupo" on storage.objects;
 create policy "payment-proofs: subida con cupo" on storage.objects
   for insert to anon, authenticated with check (bucket_id = 'payment-proofs' and public.proof_slot_open(name));
--- Ver: solo personal del panel (con URL firmada temporal). El público nunca lista ni lee.
+-- Ver: solo owner/admin (con URL firmada temporal). El público nunca lista ni lee.
 drop policy if exists "payment-proofs: personal lee" on storage.objects;
 create policy "payment-proofs: personal lee" on storage.objects
-  for select to authenticated using (bucket_id = 'payment-proofs' and public.is_staff());
+  for select to authenticated using (bucket_id = 'payment-proofs' and public.is_admin());

@@ -132,11 +132,11 @@ begin
   if c.id is null then perform public._fail('Campaña no encontrada.'); end if;
   if p_status not in ('draft', 'active', 'paused', 'closed', 'archived') then perform public._fail('Estado inválido.'); end if;
   if p_status = 'active' then
-    if c.opens_at is null then missing := missing || 'fecha y hora de apertura'; end if;
-    if c.closes_at is null then missing := missing || 'fecha y hora de cierre'; end if;
-    if c.est_dispatch_date is null then missing := missing || 'fecha estimada de despacho'; end if;
-    if c.hold_minutes is null then missing := missing || 'vigencia de una reserva pendiente'; end if;
-    if not exists (select 1 from public.preorder_products where campaign_id = c.id) then missing := missing || 'al menos un producto'; end if;
+    if c.opens_at is null then missing := missing || 'fecha y hora de apertura'::text; end if;
+    if c.closes_at is null then missing := missing || 'fecha y hora de cierre'::text; end if;
+    if c.est_dispatch_date is null then missing := missing || 'fecha estimada de despacho'::text; end if;
+    if c.hold_minutes is null then missing := missing || 'vigencia de una reserva pendiente'::text; end if;
+    if not exists (select 1 from public.preorder_products where campaign_id = c.id) then missing := missing || 'al menos un producto'::text; end if;
     if array_length(missing, 1) > 0 then
       perform public._fail('Antes de activar la campaña configura: ' || array_to_string(missing, ', ') || '.');
     end if;
@@ -561,6 +561,30 @@ begin
                     where pc.product_id is null or jsonb_array_length(pc.materials) = 0)
   ) into res;
   return res;
+end; $$;
+
+
+-- Pedidos para producción SIN datos personales ni montos: número, estado, ciudad, artículos y checklist.
+create or replace function public.admin_production_orders(p_campaign uuid default null, p_status text default null)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  perform public._require_staff();
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id', o.id, 'number', o.number, 'kind', o.kind, 'campaign_id', o.campaign_id,
+      'financial_status', o.financial_status, 'fulfillment_status', o.fulfillment_status,
+      'created_at', o.created_at, 'confirmed_at', o.confirmed_at, 'est_dispatch_date', o.est_dispatch_date,
+      'city', o.city, 'department', o.department, 'shipping_label', o.shipping_label,
+      'balance_due', (o.total - (o.paid_total - o.refunded_total)) > 0,
+      'tracking_number', o.tracking_number, 'carrier', o.carrier, 'checklist', o.production_checklist,
+      'items', (select coalesce(jsonb_agg(jsonb_build_object('name', i.name, 'kind', i.kind, 'size', i.size, 'color', i.color,
+                  'qty', i.qty, 'custom', i.custom) order by i.line_no), '[]'::jsonb) from public.order_items i where i.order_id = o.id)
+    ) order by o.est_dispatch_date nulls last, o.created_at)
+    from public.orders o
+    where o.fulfillment_status not in ('pending_confirmation', 'cancelled', 'expired')
+      and (p_campaign is null or o.campaign_id = p_campaign or exists (select 1 from public.order_items i where i.order_id = o.id and i.campaign_id = p_campaign))
+      and (p_status is null or p_status = '' or o.fulfillment_status = p_status)
+  ), '[]'::jsonb);
 end; $$;
 
 -- ---------- Permisos ---------------------------------------------------------------------------

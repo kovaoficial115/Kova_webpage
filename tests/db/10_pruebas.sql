@@ -5,6 +5,7 @@ set client_min_messages = notice;
 create schema if not exists t;
 create or replace function t.as_anon() returns void language sql as $$ select set_config('role', 'anon', false), set_config('request.jwt.claim.sub', '', false); $$;
 create or replace function t.as_user(u text) returns void language sql as $$ select set_config('request.jwt.claim.sub', u, false); $$;
+create or replace function t.oid(n text) returns uuid language sql security definer as $$ select id from public.orders where number = n $$;
 create or replace function t.ok(cond boolean, msg text) returns void language plpgsql as $$
 begin if cond is not true then raise exception 'FALLÓ: %', msg; end if; raise notice 'ok  %', msg; end; $$;
 -- Ejecuta sql y exige que falle con un mensaje que contenga pat.
@@ -59,7 +60,7 @@ select t.ok((select bool_and(sale_mode = 'normal') from public.products where id
 select t.ok((select count(*) from public.promo_codes) = 0, 'no se crean códigos promocionales automáticamente');
 
 set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000a1');
-select t.fails($$select public.admin_campaign_status((select id from public.preorder_campaigns where slug='psyche-01'), 'active')$$, 'fecha y hora de apertura', 'no se activa sin configurar fechas');
+select t.fails($$select public.admin_campaign_status((select id from public.preorder_campaigns where slug='psyche-01'), 'active')$$, 'Antes de activar la campaña configura: fecha y hora de apertura', 'no se activa sin configurar fechas');
 update public.preorder_campaigns set opens_at = now() - interval '1 hour', closes_at = now() + interval '7 days',
   est_dispatch_date = current_date + 30, hold_minutes = 120, max_units = 3, max_per_customer = 1, show_availability = true where slug = 'psyche-01';
 select t.ok((select (public.admin_campaign_status((select id from public.preorder_campaigns where slug='psyche-01'), 'active')) ->> 'ok')::boolean, 'campaña se activa con datos completos');
@@ -168,7 +169,9 @@ reset role;
 
 set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000b2');
 select t.fails($$select public.admin_review_payment((select id from public.payments limit 1), 'approve')$$, 'permiso', 'producción no aprueba pagos');
-select t.ok((select count(*) from public.orders) = 3, 'producción sí ve los pedidos');
+select t.ok((select count(*) from public.orders) = 0, 'producción NO lee pedidos con datos personales');
+select t.ok((select count(*) from public.customers) = 0 and (select count(*) from public.payments) = 0, 'producción NO lee clientes ni pagos');
+select t.ok(public.admin_production_orders() is not null and public.admin_production_orders()::text !~ '@', 'producción ve sus pedidos sin correos ni teléfonos');
 select t.as_user('00000000-0000-0000-0000-0000000000a1');
 select public.admin_review_payment((select id from public.payments where amount = 32400), 'approve');
 reset role;
@@ -178,9 +181,9 @@ select t.ok((select public.get_order_public(current_setting('t.tok2')) ->> 'bala
 
 -- Envío bloqueado con saldo, transiciones válidas
 set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000b2');
-select t.ok((public.admin_set_fulfillment(array[(select id from public.orders where number='KOVA-PSY-000002')], 'shipped') ->> 'updated')::int = 0, 'no se envía con saldo pendiente');
-select t.ok((public.admin_set_fulfillment(array[(select id from public.orders where number='KOVA-PSY-000002')], 'delivered') ->> 'updated')::int = 0, 'transición inválida rechazada (confirmado → entregado)');
-select t.ok((public.admin_set_fulfillment(array[(select id from public.orders where number='KOVA-PSY-000002')], 'in_production') ->> 'updated')::int = 1, 'producción mueve a En producción');
+select t.ok((public.admin_set_fulfillment(array[t.oid('KOVA-PSY-000002')], 'shipped') ->> 'updated')::int = 0, 'no se envía con saldo pendiente');
+select t.ok((public.admin_set_fulfillment(array[t.oid('KOVA-PSY-000002')], 'delivered') ->> 'updated')::int = 0, 'transición inválida rechazada (confirmado → entregado)');
+select t.ok((public.admin_set_fulfillment(array[t.oid('KOVA-PSY-000002')], 'in_production') ->> 'updated')::int = 1, 'producción mueve a En producción');
 select t.as_user('00000000-0000-0000-0000-0000000000a1');
 select public.admin_add_payment((select id from public.orders where number='KOVA-PSY-000002'), '{"kind":"balance","amount":32400,"method":"nu","reference":"M999"}');
 reset role;

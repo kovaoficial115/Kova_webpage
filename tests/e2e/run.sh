@@ -12,5 +12,6 @@ curl -s -o /dev/null localhost:8080 || (cd "kova-web 2" && npx http-server -p 80
 sleep 2
 status=0
 node tests/e2e/tienda.mjs || status=$?
+[ $status -eq 0 ] && { node tests/e2e/admin.mjs || status=$?; }
 kill $MOCK 2>/dev/null || true
 exit $status
