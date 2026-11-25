@@ -116,6 +116,22 @@ await page.click('.adm-tools [data-status="active"]');
 await dialogFill(page);
 await page.waitForTimeout(800);
 ok(/Antes de activar la campaña configura/.test(await page.textContent('body')), 'preventas: no se activa sin fechas');
+// Fecha sin hora: antes se guardaba vacía sin avisar (datetime-local a medio llenar).
+await page.fill('[name="opens_at_d"]', '2026-12-01');
+await page.click('[data-save]');
+await page.waitForTimeout(400);
+ok(/la hora de apertura/.test(await page.textContent('[data-msg]')), 'preventas: fecha sin hora avisa en vez de guardarse vacía');
+await page.fill('[name="opens_at_t"]', '09:00');
+await page.fill('[name="closes_at_d"]', '2026-12-20');
+await page.fill('[name="closes_at_t"]', '23:59');
+await page.click('[data-save]');
+await page.waitForFunction(() => /Campaña guardada/.test(document.body.textContent), null, { timeout: 10000 }).catch(() => {});
+await waitView(page, '[data-camp]');
+ok(await page.inputValue('[name="opens_at_d"]') === '2026-12-01' && await page.inputValue('[name="opens_at_t"]') === '09:00', 'preventas: apertura guardada con fecha y hora (Bogotá)');
+await page.click('.adm-tools [data-status="active"]');
+await dialogFill(page);
+await page.waitForTimeout(800);
+ok(!/fecha y hora de apertura/.test(await page.textContent('body')), 'preventas: con fechas guardadas, activar ya no pide la apertura');
 
 // Códigos
 await tab(page, 'codigos', 'Códigos');

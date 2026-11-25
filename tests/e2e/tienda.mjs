@@ -139,7 +139,30 @@ await page2.waitForSelector('.o-error', { timeout: 10000 });
 ok(/No pudimos abrir/.test(await page2.textContent('main')), 'seguimiento: un token inválido no muestra ningún pedido');
 await page2.goto(`${SITE}/pedido.html#${token}`);
 await page2.waitForSelector('.o-grid');
+await page2.waitForTimeout(900);
 await page2.screenshot({ path: `${SHOTS}/06-seguimiento-escritorio.png`, fullPage: true });
+const lay = await page2.evaluate(() => {
+  const W = document.documentElement.clientWidth;
+  const clipped = (el) => { for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o !== 'visible') return true; } return false; };
+  const wide = [...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > W + 1 && !clipped(el))
+    .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}:${Math.round(el.getBoundingClientRect().right)}`).slice(0, 12);
+  const ch = document.querySelector('.orderpage .chapter');
+  return { W, sw: document.documentElement.scrollWidth, wide, chapter: ch ? getComputedStyle(ch).opacity : 'none' };
+});
+if (process.env.DEBUG_LAYOUT) console.log(JSON.stringify(lay));
+ok(lay.sw <= lay.W, `seguimiento (escritorio): sin desborde horizontal (${lay.sw}/${lay.W}px)`);
+ok(lay.chapter === '1', 'seguimiento (escritorio): el encabezado del pedido es visible, sin hueco');
+for (const w of [1101, 1280, 1440, 1920]) {
+  await page2.setViewportSize({ width: w, height: 900 });
+  for (const path of ['index.html', `pedido.html#${token}`, 'checkout.html', 'admin/']) {
+    await page2.goto(`${SITE}/${path}`);
+    await page2.waitForTimeout(500);
+    const d = await page2.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (d > 0) ok(false, `sin desborde horizontal en ${path} a ${w}px (sobran ${d}px)`);
+  }
+}
+ok(true, 'cabecera y páginas sin desborde horizontal de 1101 a 1920 px');
+await page2.setViewportSize({ width: 1280, height: 900 });
 await page2.goto(`${SITE}/condiciones.html`);
 await page2.waitForTimeout(800);
 ok(/Ley 1480/.test(await page2.textContent('main')), 'condiciones: textos legales visibles');

@@ -818,3 +818,19 @@ body:not([data-page="cart"]) .footer { padding-bottom: 104px; }
 .notice-after[hidden], .notice-clear[hidden] { display: none; }
 /* El botón de enviar queda siempre a mano aunque el resumen sea largo. */
 .checkout-notice .modal__cta { position: sticky; bottom: 12px; z-index: 2; margin-top: 18px; box-shadow: 0 10px 30px rgb(0 0 31 / .55); }
+
+/* Cabecera en portátiles (1101–1440 px): con 6 enlaces + Instagram + carrito no cabía y desbordaba
+   la página hacia la derecha. Se compacta sin esconder el menú. */
+@media (min-width: 1101px) {
+  .nav__list a { white-space: nowrap; }
+}
+@media (min-width: 1101px) and (max-width: 1440px) {
+  .header__bar { gap: 16px; }
+  .header__logo img { width: 168px; }
+  .nav { gap: 14px; }
+  .nav__num { display: none; }
+  .nav__list a { padding: 10px 8px; font-size: 13px; letter-spacing: .07em; }
+  .header__cart { width: 44px; min-height: 44px; padding: 0; justify-content: center; }
+  .header__cartLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .header__cartCount { position: absolute; top: -9px; right: -9px; border: 2px solid var(--navy); min-width: 24px; height: 24px; }
+}

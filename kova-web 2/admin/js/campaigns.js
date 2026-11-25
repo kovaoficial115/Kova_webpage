@@ -133,6 +133,13 @@ const inp = (name, label, value, { type = 'text', hint = '', attrs = '', req = f
   <label class="field" data-field="${name}"><span class="field__label">${esc(label)}${req ? ' <span>*</span>' : ''}</span>
     ${type === 'textarea' ? `<textarea class="field__input" name="${name}" rows="4" ${attrs}>${esc(value ?? '')}</textarea>` : `<input class="field__input" name="${name}" type="${type}" value="${esc(value ?? '')}" ${attrs}>`}
     ${hint ? `<span class="field__hint">${hint}</span>` : ''}</label>`;
+/** Fecha + hora en dos campos: un datetime-local a medio llenar (p. ej. Safari sin la hora) devuelve '' y se perdía. */
+const inpDT = (name, label, iso, req = false) => {
+  const [d, t] = (toLocalInput(iso) || 'T').split('T');
+  return `<fieldset class="field adm-dt" data-field="${name}"><legend class="field__label">${esc(label)} (hora Colombia)${req ? ' <span>*</span>' : ''}</legend>
+    <div class="adm-dt__row"><input class="field__input" name="${name}_d" type="date" value="${esc(d)}" aria-label="${esc(label)}: fecha">
+    <input class="field__input" name="${name}_t" type="time" step="60" value="${esc(t)}" aria-label="${esc(label)}: hora"></div></fieldset>`;
+};
 const sw = (name, label, on, hint = '') => `<label class="adm-switch"><input type="checkbox" name="${name}"${on ? ' checked' : ''}><span class="adm-switch__ui" aria-hidden="true"></span><span>${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</span></label>`;
 
 function variantGrid(p, limits, used) {
@@ -164,7 +171,7 @@ function drawEditor(view, c, products, links, limits, used, isNew) {
       </section>
 
       <section class="adm-card"><h2 class="adm-card__title">Fechas (hora de Colombia)</h2>
-        <div class="adm-two">${inp('opens_at', 'Apertura', toLocalInput(c.opens_at), { type: 'datetime-local', req: true })}${inp('closes_at', 'Cierre', toLocalInput(c.closes_at), { type: 'datetime-local', req: true })}</div>
+        <div class="adm-two">${inpDT('opens_at', 'Apertura', c.opens_at, true)}${inpDT('closes_at', 'Cierre', c.closes_at, true)}</div>
         <div class="adm-two">${inp('est_dispatch_date', 'Despacho estimado', c.est_dispatch_date, { type: 'date', req: true })}${inp('est_delivery_date', 'Entrega estimada', c.est_delivery_date, { type: 'date' })}</div>
         <div class="adm-two">${inp('hold_minutes', 'Vigencia de una reserva sin pago (minutos)', c.hold_minutes, { req: true, attrs: 'inputmode="numeric"', hint: 'Tiempo para pagar antes de liberar el cupo. Ej.: 1440 = 24 horas.' })}
           ${inp('verification_hours', 'Plazo para verificar un comprobante (horas)', c.verification_hours, { attrs: 'inputmode="numeric"', hint: 'Vacío = valor general de Configuración.' })}</div>
@@ -226,16 +233,23 @@ function drawEditor(view, c, products, links, limits, used, isNew) {
     const msg = form.querySelector('[data-msg]');
     const v = (n) => form.elements[n].value.trim();
     const chk = (n) => form.elements[n].checked;
+    const errs = [];
+    const when = (n, label) => {
+      const d = form.elements[`${n}_d`], t = form.elements[`${n}_t`];
+      if (d.validity.badInput || t.validity.badInput) { errs.push(`una fecha y hora de ${label} completas`); return null; }
+      if (!d.value && !t.value) return null;
+      if (!d.value || !t.value) { errs.push(`${d.value ? 'la hora' : 'la fecha'} de ${label}`); return null; }
+      return fromLocalInput(`${d.value}T${t.value.slice(0, 5)}`);
+    };
     const row = {
       name: v('name'), slug: v('slug'), drop_name: v('drop_name'), description: v('description'), banner_url: v('banner_url'),
-      order_prefix: v('order_prefix').toUpperCase(), opens_at: fromLocalInput(v('opens_at')), closes_at: fromLocalInput(v('closes_at')),
+      order_prefix: v('order_prefix').toUpperCase(), opens_at: when('opens_at', 'apertura'), closes_at: when('closes_at', 'cierre'),
       est_dispatch_date: v('est_dispatch_date') || null, est_delivery_date: v('est_delivery_date') || null,
       hold_minutes: intOrNull(v('hold_minutes')), verification_hours: intOrNull(v('verification_hours')), deposit_pct: intOrNull(v('deposit_pct')),
       shipping_charge: v('shipping_charge'), allow_full_payment: chk('allow_full_payment'), allow_promo_codes: chk('allow_promo_codes'),
       max_units: intOrNull(v('max_units')), max_per_customer: intOrNull(v('max_per_customer')), auto_close_on_limit: chk('auto_close_on_limit'),
       show_countdown: chk('show_countdown'), show_availability: chk('show_availability'), terms: v('terms'),
     };
-    const errs = [];
     if (!row.name) errs.push('el nombre');
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(row.slug)) errs.push('un identificador válido');
     if (!/^[A-Z0-9]{2,6}$/.test(row.order_prefix)) errs.push('un prefijo de 2 a 6 letras o números');
