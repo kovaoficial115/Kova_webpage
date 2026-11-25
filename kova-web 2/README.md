@@ -22,3 +22,6 @@ Se guardan en Supabase, tabla `public.store_settings` (lectura pública, escritu
 no responde, usa los valores de `js/data/custom.js` y `js/config.js`.
 
 Pago por defecto: **Nu — Llave Nu 3145224180** (con botón para copiar) y Nequi con QR. Banco de Bogotá se retiró.
+
+## Preventas, códigos, checkout y panel (nov 2026)
+Ver [docs/MANUAL-PREVENTAS-Y-PANEL.md](docs/MANUAL-PREVENTAS-Y-PANEL.md): funciones, migraciones, primeros pasos, pruebas, despliegue y rollback.
