@@ -3,7 +3,7 @@ import { esc } from '../utils/dom.js';
 import { bagIcon } from './cartPanel.js';
 
 const MARQUEE_ITEMS = [
-  'Compra directo por WhatsApp',
+  'Pedidos con seguimiento en línea',
   `@${CONFIG.instagram.handle}`,
   CONFIG.brand.tagline,
   'Drop 01 disponible',
@@ -26,6 +26,7 @@ export function renderHeader() {
     { href: 'index.html#catalogo', label: 'Catálogo' },
     { href: 'custom.html', label: 'KOVA Custom', current: document.body.dataset.page === 'custom' },
     { href: 'index.html#como-comprar', label: 'Cómo comprar' },
+    { href: 'pedido.html', label: 'Mi pedido', current: document.body.dataset.page === 'pedido' },
     { href: 'index.html#contacto', label: 'Contacto' },
   ];
   const nav = links.map((l, i) => `

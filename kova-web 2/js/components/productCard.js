@@ -1,4 +1,5 @@
-import { getCategory, getByCategory, isAvailable, getProductById } from '../services/catalog.js';
+import { getCategory, getByCategory, isAvailable, getProductById, purchaseState } from '../services/catalog.js';
+import { depositOf } from '../services/storefront.js';
 import { addItem } from '../services/cart.js';
 import { CONFIG } from '../config.js';
 import { formatPrice } from '../utils/format.js';
@@ -18,7 +19,17 @@ export const productRef = (product) =>
  * Si el producto tiene tallas, abre un selector de talla sobre la imagen.
  */
 function quickAdd(product) {
-  const out = product.soldOutSizes ?? [];
+  const pre = purchaseState(product).mode === 'preorder';
+  // Con colores hay que elegir color y talla: el botón lleva a la página del producto.
+  if (product.colors?.length) {
+    return `
+    <div class="card__quick">
+      <a class="card__add" href="${productUrl(product)}" aria-label="${pre ? 'Reservar' : 'Elegir talla y color de'} ${esc(product.name)}">
+        <span class="card__addLabel">${pre ? 'Reservar' : 'Elegir'}</span><span class="card__addPlus" aria-hidden="true">→</span>
+      </a>
+    </div>`;
+  }
+  const out = pre ? [] : (product.soldOutSizes ?? []);
   const picker = product.sizes?.length ? `
     <div class="card__picker" role="group" aria-label="Elige la talla de ${esc(product.name)}" hidden>
       <span class="card__pickerLabel">Talla</span>
@@ -93,11 +104,16 @@ export function initQuickAdd() {
 }
 
 export function productCard(product, index = 0) {
-  const soldOut = !isAvailable(product);
+  const state = purchaseState(product);
+  const soldOut = !state.canBuy;
   const [front, back] = product.images;
-  const tag = soldOut
-    ? '<span class="tag tag--out card__tag">Agotado</span>'
+  const pre = state.mode === 'preorder';
+  const tag = pre
+    ? `<span class="tag tag--pre card__tag${soldOut ? ' tag--out' : ''}">${state.canBuy ? 'Pre-order' : esc(state.label)}</span>`
+    : state.mode === 'coming_soon' ? '<span class="tag tag--navy card__tag">Próximamente</span>'
+    : soldOut ? '<span class="tag tag--out card__tag">Agotado</span>'
     : product.tag ? `<span class="tag card__tag">${esc(product.tag)}</span>` : '';
+  const pct = state.preorder?.campaign?.deposit_pct;
   const sizes = product.sizes?.length
     ? `<span class="card__sizes" aria-label="Tallas">${product.sizes.map((s) => `<span${product.soldOutSizes?.includes(s) ? ' class="is-out"' : ''}>${esc(s)}</span>`).join('')}</span>`
     : '';
@@ -117,7 +133,7 @@ export function productCard(product, index = 0) {
             ${sizes}
           </div>
           <h3 class="card__name">${esc(product.name)}</h3>
-          <span class="card__price">${formatPrice(product.price)}</span>
+          <span class="card__price">${formatPrice(product.price)}${pre && state.canBuy && pct && pct < 100 ? `<small class="card__deposit">Reserva con ${formatPrice(depositOf(product.price, pct))}</small>` : ''}</span>
         </div>
       </a>
       ${soldOut ? '' : quickAdd(product)}

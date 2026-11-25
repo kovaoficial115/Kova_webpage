@@ -2,8 +2,10 @@
  * Página del carrito completo (carrito.html).
  * Usa el mismo estado que el panel flotante y la cabecera (services/cart.js).
  */
-import { subscribe } from '../services/cart.js';
-import { bindCart, linesHtml, summaryHtml, emptyHtml, buyerFormHtml, copyHintHtml, unitsLabel, renderList } from '../components/cartView.js';
+import { subscribe, getCart } from '../services/cart.js';
+import { onPromo } from '../services/promo.js';
+import { bindCart, linesHtml, summaryHtml, emptyHtml, checkoutCtaHtml, unitsLabel, renderList } from '../components/cartView.js';
+import { promoFieldHtml } from '../components/promoField.js';
 import { chapter } from '../components/chapter.js';
 import { mountLayout } from '../components/layout.js';
 
@@ -17,7 +19,7 @@ main.innerHTML = `
         <a href="index.html#catalogo">Catálogo</a><i class="ico ico--destellos" aria-hidden="true"></i>
         <span aria-current="page">Carrito</span>
       </nav>
-      ${chapter({ num: 'KV', title: 'Tu carrito', note: 'Revisa tu pedido antes de enviarlo por WhatsApp', folio: '00 unidades' })}
+      ${chapter({ num: 'KV', title: 'Tu carrito', note: 'Revisa tu pedido antes de finalizar la compra', folio: '00 unidades' })}
 
       <div class="cartpage__empty grid-lines" data-empty hidden>${emptyHtml({ cta: 'Volver al catálogo' })}</div>
 
@@ -33,14 +35,11 @@ main.innerHTML = `
         <aside class="cartpage__summary s-navy grid-lines" aria-labelledby="cart-summary-title">
           <p class="eyebrow">Pedido directo</p>
           <h2 class="cartpage__sumTitle" id="cart-summary-title">Resumen<span class="dot">.</span></h2>
+          ${promoFieldHtml('cart-page')}
           <div data-summary></div>
-          ${buyerFormHtml('cart-page')}
-          ${copyHintHtml()}
-          <button class="btn btn--primary btn--xl btn--block" type="submit" form="cart-page-form">
-            Finalizar pedido <i class="ico ico--destellos" aria-hidden="true"></i>
-          </button>
+          ${checkoutCtaHtml()}
           <a class="btn btn--line btn--block cartpage__continue" href="index.html#catalogo">Seguir comprando</a>
-          <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Disponibilidad, envío y pago se confirman con Kova por WhatsApp.</p>
+          <p class="cartpage__note"><i class="ico ico--orbita" aria-hidden="true"></i> Precios, descuentos y cupos se verifican al registrar el pedido.</p>
         </aside>
       </div>
     </div>
@@ -51,7 +50,8 @@ mountLayout();
 const page = main.querySelector('.cartpage');
 const lines = page.querySelector('[data-lines]');
 const folio = page.querySelector('.chapter__folio span:last-child');
-const form = bindCart(page);
+bindCart(page);
+onPromo(() => { page.querySelector('[data-summary]').innerHTML = summaryHtml(getCart()); });
 
 subscribe((cart) => {
   const empty = cart.lines.length === 0;
@@ -61,5 +61,4 @@ subscribe((cart) => {
   const lostFocus = renderList(lines, linesHtml(cart));
   if (lostFocus) (empty ? page.querySelector('[data-empty] a') : page.querySelector('.cartpage__back')).focus();
   page.querySelector('[data-summary]').innerHTML = summaryHtml(cart);
-  form.refresh();
 });

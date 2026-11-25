@@ -155,14 +155,14 @@ function renderCatalog() {
 
 function renderSteps() {
   const steps = [
-    ['Elige', 'Escoge tu camiseta y tu talla, y añádela al carrito (desde el catálogo o la página del producto).', 'destellos'],
-    ['Pide', 'En el carrito escribe tu nombre y teléfono, elige cómo pagar (Llave Nu o Nequi con QR) y pulsa “Finalizar pedido”: verás el resumen y el botón para enviarlo por WhatsApp.', 'orbita'],
-    ['Paga y recíbelo', 'Te confirmamos disponibilidad y envío por WhatsApp. Pagas con el método elegido, nos compartes el comprobante (lo confirmamos manualmente) y despachamos tu pedido.', 'globo'],
+    ['Elige', 'Escoge tu camiseta, color, talla y cantidad. Si está en preventa, pulsa “Reservar ahora”. Si tienes un código promocional, aplícalo en el carrito.', 'destellos'],
+    ['Registra tu pedido', 'Completa tus datos y elige anticipo o pago completo. Recibes un número de pedido y un enlace privado de seguimiento.', 'orbita'],
+    ['Paga y recíbelo', 'Transfiere a la Llave Nu o por Nequi y sube el comprobante en tu enlace. KOVA verifica el pago, confirma tu reserva y te avisa por WhatsApp en cada paso.', 'globo'],
   ];
   return `
     <section class="section s-navy" id="como-comprar">
       <div class="container">
-        ${chapter({ num: nextChapter(), title: 'Cómo comprar', note: 'Carrito, pago con Llave Nu o Nequi y pedido por WhatsApp', folio: '03 pasos' })}
+        ${chapter({ num: nextChapter(), title: 'Cómo comprar', note: 'Carrito, pago con Llave Nu o Nequi y seguimiento en línea', folio: '03 pasos' })}
         <ol class="steps">
           ${steps.map(([t, d, ico], i) => `
             <li class="step reveal" style="--i:${i}">

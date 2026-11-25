@@ -12,7 +12,7 @@
  *   solo el nombre del archivo (para recordar cuál enviar por WhatsApp) y una miniatura pequeña.
  */
 import { CONFIG } from '../config.js';
-import { getProductById, isAvailable } from './catalog.js';
+import { getProductById, isAvailable, purchaseState } from './catalog.js';
 import { getPayments } from './settings.js';
 import { CUSTOM_PRODUCT_ID } from '../data/custom.js';
 import { getMode, getColor, validateCustom, stockOf, priceOf, faceText, modeMeasures, modeZones, cmText } from './custom.js';
@@ -44,12 +44,14 @@ function isValidLine(line) {
   const { id, size, color } = line;
   const product = getProductById(id);
   if (!product || !isAvailable(product) || !Number.isInteger(product.price) || product.price < 0) return false;
+  const state = purchaseState(product);
   if (product.sizes?.length) {
-    if (!product.sizes.includes(size) || product.soldOutSizes?.includes(size)) return false;
+    if (!product.sizes.includes(size) || (state.mode === 'normal' && product.soldOutSizes?.includes(size))) return false;
   } else if (size) return false;
   if (product.colors?.length) {
     if (!product.colors.some((c) => c.name === color)) return false;
   } else if (color) return false;
+  if (state.mode === 'preorder' && !state.preorder.variantInfo(size, color).enabled) return false;
   return true;
 }
 
@@ -166,9 +168,13 @@ export function getCart() {
       };
     }
     const product = getProductById(it.id);
+    const state = purchaseState(product);
+    const campaign = state.mode === 'preorder' ? state.preorder.campaign : null;
     return {
       key: lineKey(it),
       id: it.id,
+      kind: state.mode === 'preorder' ? 'preorder' : 'normal',
+      campaign: campaign ? { id: campaign.id, name: campaign.name, depositPct: campaign.deposit_pct, dispatch: campaign.est_dispatch_date } : null,
       size: it.size,
       color: it.color,
       qty: it.qty,
@@ -181,9 +187,21 @@ export function getCart() {
   });
   const units = lines.reduce((n, l) => n + l.qty, 0);
   const subtotal = lines.reduce((n, l) => n + l.subtotal, 0);
-  // Sin envío, impuestos ni descuentos en el catálogo: el total es el subtotal.
-  return { lines, units, subtotal, total: subtotal, max: MAX };
+  // Estimación local (solo para mostrar). Descuentos, anticipos y envío los calcula el servidor (quote_cart).
+  const hasPreorder = lines.some((l) => l.kind === 'preorder');
+  const minNow = lines.reduce((n, l) => n + (l.kind === 'preorder' ? Math.round((l.subtotal * l.campaign.depositPct) / 100) : l.subtotal), 0);
+  return { lines, units, subtotal, total: subtotal, max: MAX, hasPreorder, minNow };
 }
+
+/** Líneas del carrito en el formato que valida el servidor (nunca incluye precios). */
+export function serverItems() {
+  return items.map((it) => (isCustomLine(it)
+    ? { custom: { mode: it.mode, color: it.color, size: it.size, ref: it.ref, files: it.files ?? {} }, qty: it.qty }
+    : { product_id: it.id, size: it.size ?? '', color: it.color ?? '', qty: it.qty }));
+}
+
+/** Firma del contenido del carrito: cambia si cambian productos, variantes o cantidades. */
+export const cartSignature = () => items.map((it) => `${lineKey(it)}x${it.qty}`).join('|');
 
 /** Agrega una variante. Devuelve { ok, qty, capped }. */
 export function addItem(id, { size = null, color = null, qty = 1 } = {}) {
@@ -234,12 +252,14 @@ export const removeItem = (key) => commit(items.filter((it) => lineKey(it) !== k
 export const clearCart = () => commit([]);
 
 /* ---------- Datos del comprador (solo durante la sesión de la pestaña) ---------- */
+const BUYER_FIELDS = ['name', 'phone', 'email', 'department', 'city', 'address', 'notes', 'shipping', 'plan', 'payment', 'promo'];
+const emptyBuyer = () => Object.fromEntries(BUYER_FIELDS.map((f) => [f, '']));
 export function getBuyer() {
-  try { return { name: '', phone: '', payment: '', ...JSON.parse(sessionStorage.getItem(BUYER_KEY) || '{}') }; } catch { return { name: '', phone: '', payment: '' }; }
+  try { return { ...emptyBuyer(), ...JSON.parse(sessionStorage.getItem(BUYER_KEY) || '{}') }; } catch { return emptyBuyer(); }
 }
 export function setBuyer(patch) {
   const next = { ...getBuyer(), ...patch };
-  try { sessionStorage.setItem(BUYER_KEY, JSON.stringify({ name: next.name, phone: next.phone, payment: next.payment })); } catch { /* sin almacenamiento */ }
+  try { sessionStorage.setItem(BUYER_KEY, JSON.stringify(Object.fromEntries(BUYER_FIELDS.map((f) => [f, String(next[f] ?? '')])))); } catch { /* sin almacenamiento */ }
   return next;
 }
 export function clearBuyer() {
@@ -249,17 +269,29 @@ export function clearBuyer() {
 /** Método de pago elegido (de los ajustes del panel o de CONFIG.payments), o undefined. */
 export const getPayment = (id) => getPayments().find((p) => p.id === id);
 
-/** Valida nombre, teléfono y método de pago. Devuelve { ok, errors: { name?, phone?, payment? }, buyer }. */
-export function validateBuyer({ name = '', phone = '', payment = '' }) {
-  const cleanName = name.trim().replace(/\s+/g, ' ');
-  const digits = phone.replace(/[\s().-]/g, '');
+const DIGITS = (v) => String(v ?? '').replace(/\D/g, '');
+
+/**
+ * Valida el formulario de compra (el servidor vuelve a validarlo todo).
+ * `needsAddress`: el método de entrega elegido requiere dirección.
+ */
+export function validateBuyer(b, { needsAddress = true } = {}) {
+  const name = String(b.name ?? '').trim().replace(/\s+/g, ' ');
+  const digits = DIGITS(b.phone);
+  const email = String(b.email ?? '').trim().toLowerCase();
   const errors = {};
-  if (!cleanName) errors.name = 'Escribe tu nombre completo.';
-  else if (cleanName.split(' ').filter((w) => w.length >= 2).length < 2 || /[\d@]/.test(cleanName)) errors.name = 'Escribe tu nombre y apellido.';
-  if (!digits) errors.phone = 'Escribe un número de contacto.';
-  else if (!/^\+?\d{7,15}$/.test(digits)) errors.phone = 'Escribe un teléfono válido: solo números, entre 7 y 15 dígitos.';
-  if (!getPayment(payment)) errors.payment = 'Elige un método de pago.';
-  return { ok: !Object.keys(errors).length, errors, buyer: { name: cleanName, phone: phone.trim(), payment: getPayment(payment) } };
+  if (!name) errors.name = 'Escribe tu nombre completo.';
+  else if (name.split(' ').filter((w) => w.length >= 2).length < 2 || /[\d@]/.test(name)) errors.name = 'Escribe tu nombre y apellido.';
+  if (!digits) errors.phone = 'Escribe tu número de WhatsApp.';
+  else if (!/^\d{10,15}$/.test(digits)) errors.phone = 'Escribe un WhatsApp válido: 10 dígitos (por ejemplo 300 123 4567).';
+  if (!email) errors.email = 'Escribe tu correo electrónico.';
+  else if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) errors.email = 'Escribe un correo válido (ejemplo@correo.com).';
+  if (!String(b.department ?? '').trim()) errors.department = 'Escribe tu departamento.';
+  if (!String(b.city ?? '').trim()) errors.city = 'Escribe tu ciudad.';
+  if (needsAddress && String(b.address ?? '').trim().length < 6) errors.address = 'Escribe la dirección de entrega.';
+  if (!b.shipping) errors.shipping = 'Elige cómo recibir tu pedido.';
+  if (!getPayment(b.payment)) errors.payment = 'Elige un método de pago.';
+  return { ok: !Object.keys(errors).length, errors, buyer: { ...b, name, email, payment: getPayment(b.payment) } };
 }
 
 // Otra pestaña cambió el carrito: se recarga para que todo coincida.

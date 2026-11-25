@@ -5,7 +5,10 @@
  * También mantiene al día todos los contadores [data-cart-count] (cabecera incluida).
  */
 import { subscribe } from '../services/cart.js';
-import { bindCart, linesHtml, summaryHtml, emptyHtml, buyerFormHtml, copyHintHtml, unitsLabel, renderList } from './cartView.js';
+import { bindCart, linesHtml, summaryHtml, emptyHtml, checkoutCtaHtml, unitsLabel, renderList } from './cartView.js';
+import { promoFieldHtml } from './promoField.js';
+import { onPromo } from '../services/promo.js';
+import { getCart } from '../services/cart.js';
 
 export const bagIcon = (cls = '') => `
   <svg class="bag ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -59,15 +62,12 @@ export function mountCart() {
       <div data-empty-slot></div>
       <div data-filled>
         <ul class="cart-lines cart-lines--compact" data-lines aria-label="Productos en el carrito"></ul>
+        ${promoFieldHtml('cart-panel')}
         <div class="cart-panel__summary" data-summary></div>
-        ${buyerFormHtml('cart-panel')}
       </div>
     </div>
     <div class="cart-panel__foot" data-filled>
-      ${copyHintHtml()}
-      <button class="btn btn--primary btn--xl btn--block" type="submit" form="cart-panel-form">
-        Finalizar pedido <i class="ico ico--destellos" aria-hidden="true"></i>
-      </button>
+      ${checkoutCtaHtml()}
       <div class="cart-panel__links">
         <button class="btn btn--line btn--sm" type="button" data-close>Seguir comprando</button>
         <a class="btn btn--line btn--sm" href="carrito.html">Ver carrito <span class="btn__arrow" aria-hidden="true">→</span></a>
@@ -86,8 +86,6 @@ export function mountCart() {
   };
   const open = () => {
     if (panel.open) return;
-    form.fill();
-    form.refresh();
     panel.showModal();
     document.body.classList.add('no-scroll');
   };
@@ -99,7 +97,8 @@ export function mountCart() {
   // "Ir al catálogo" desde el panel: si ya estamos en el inicio, solo se cierra el panel.
   emptySlot.querySelector('[data-continue]').addEventListener('click', close);
 
-  const form = bindCart(panel, { onCheckoutStart: () => panel.close() });
+  bindCart(panel);
+  onPromo(() => { panel.querySelector('[data-summary]').innerHTML = summaryHtml(getCart()); });
 
   subscribe((cart) => {
     updateCounters(cart);
@@ -110,7 +109,6 @@ export function mountCart() {
     const lostFocus = renderList(lines, linesHtml(cart));
     if (lostFocus && panel.open) (empty ? emptySlot.querySelector('a') : panel.querySelector('.modal__close')).focus();
     panel.querySelector('[data-summary]').innerHTML = summaryHtml(cart);
-    form.refresh();
     // Pequeño rebote del botón cuando se agregan unidades.
     if (lastUnits !== null && cart.units > lastUnits) {
       fab.classList.remove('is-bump');
