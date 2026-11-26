@@ -185,7 +185,14 @@ main:empty::before {
 .btn--line { --btn-hover-bg: var(--fg); }
 .btn--sm { min-height: 42px; padding: 8px 18px; font-size: 16px; }
 .btn--xl { min-height: 64px; padding-inline: 34px; font-size: 22px; }
-.btn--block { width: 100%; }
+.btn--block { width: 100%; padding-inline: 18px; }
+/* Ningún botón debe salirse de su contenedor: en pantallas angostas los grandes se compactan y,
+   si aun así el texto no cabe, pasa a dos líneas en lugar de cortarse. */
+.btn { max-width: 100%; }
+@media (max-width: 420px) {
+  .btn--xl { padding-inline: 22px; font-size: 20px; }
+  .btn { white-space: normal; text-align: center; }
+}
 .btn[disabled] { opacity: .5; pointer-events: none; }
 
 /* ---------- Etiquetas (tags y estados) ---------- */
@@ -220,6 +227,7 @@ main:empty::before {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: max-content; /* con left: 50% el aviso se encogía a media pantalla en móvil */
   max-width: calc(100% - 32px);
   padding: 14px 20px;
   background: var(--arena);

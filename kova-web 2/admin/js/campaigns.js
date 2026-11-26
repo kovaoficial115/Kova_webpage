@@ -149,14 +149,14 @@ const sw = (name, label, on, hint = '') => `<label class="adm-switch"><input typ
 function variantGrid(p, limits, used) {
   const sizes = p.sizes?.length ? p.sizes : [''];
   const colors = p.colors?.length ? p.colors.map((c) => c.name) : [''];
-  return `<table class="adm-table adm-vgrid"><thead><tr><th>Color \\ Talla</th>${sizes.map((s) => `<th>${esc(s || 'Única')}</th>`).join('')}</tr></thead><tbody>
+  return `<div class="adm-table-wrap"><table class="adm-table adm-vgrid"><thead><tr><th>Color \\ Talla</th>${sizes.map((s) => `<th>${esc(s || 'Única')}</th>`).join('')}</tr></thead><tbody>
     ${colors.map((c) => `<tr><th>${esc(c || 'Único')}</th>${sizes.map((s) => {
       const l = limits.find((x) => x.product_id === p.id && x.size === s && x.color === c);
       const u = used.filter((x) => x.product_id === p.id && x.size === s && x.color === c).reduce((n, x) => n + x.qty, 0);
       return `<td><label class="adm-vcell"><input type="checkbox" data-v-en="${esc(p.id)}|${esc(s)}|${esc(c)}"${l?.enabled === false ? '' : ' checked'} aria-label="Participa ${esc(c)} ${esc(s)}">
         <input class="field__input" data-v-max="${esc(p.id)}|${esc(s)}|${esc(c)}" inputmode="numeric" placeholder="∞" value="${l?.max_units ?? ''}" aria-label="Límite ${esc(c)} ${esc(s)}"></label>
         ${u ? `<small>${u} usadas</small>` : ''}</td>`;
-    }).join('')}</tr>`).join('')}</tbody></table>`;
+    }).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function drawEditor(view, c, products, links, limits, used, isNew) {

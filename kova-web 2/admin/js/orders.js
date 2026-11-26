@@ -219,7 +219,7 @@ export function designsSection(items, designs) {
   const missing = rows.filter((r) => r.includes('adm-bad')).length;
   return `<section class="adm-card"><h2 class="adm-card__title">Diseños KOVA Custom</h2>
     ${missing ? `<div class="adm-alert">${missing} diseño(s) pendiente(s). El cliente puede subirlos desde su enlace de seguimiento.</div>` : ''}
-    <table class="adm-table"><thead><tr><th>Producto</th><th>Cara</th><th>Archivo</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>
+    <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>Producto</th><th>Cara</th><th>Archivo</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
     <p class="adm-muted">Archivos privados: cada enlace dura 10 minutos.</p></section>`;
 }
 
@@ -273,7 +273,7 @@ function drawOrder(view, o, items, pays, hist, campaign, designs = []) {
     <div class="adm-detail">
       <div class="adm-detail__main">
         <section class="adm-card"><h2 class="adm-card__title">Productos</h2>
-          <table class="adm-table"><thead><tr><th>Producto</th><th>Variante</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Descuento</th><th class="num">Total</th></tr></thead>
+          <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>Producto</th><th>Variante</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Descuento</th><th class="num">Total</th></tr></thead>
           <tbody>${items.map((i) => `<tr><td>${esc(i.name)}${i.kind !== 'normal' ? ` <span class="adm-chip">${esc(KIND[i.kind])}</span>` : ''}
             ${i.custom ? `<small>${esc([i.custom.mode_label, i.custom.zones?.join?.(', '), i.custom.notes].filter(Boolean).join(' · '))}</small>` : ''}</td>
             <td>${esc([i.color, i.size && `Talla ${i.size}`].filter(Boolean).join(' · ') || '—')}</td>
@@ -283,7 +283,7 @@ function drawOrder(view, o, items, pays, hist, campaign, designs = []) {
             ${o.discount_total ? `<tr><td colspan="5">Código ${esc(o.promo_code ?? '')}</td><td class="num">−${money(o.discount_total)}</td></tr>` : ''}
             <tr><td colspan="5">Envío (${esc(o.shipping_label || o.shipping_method)}${o.kind !== 'normal' ? `, se cobra ${o.shipping_charge_at === 'balance' ? 'con el saldo' : 'con la reserva'}` : ''})</td><td class="num">${o.shipping_amount == null ? 'Por definir' : money(o.shipping_amount)}</td></tr>
             <tr class="adm-strong"><td colspan="5">Total</td><td class="num">${money(o.total)}</td></tr>
-          </tfoot></table>
+          </tfoot></table></div>
         </section>
 
         ${designsSection(items, designs)}
