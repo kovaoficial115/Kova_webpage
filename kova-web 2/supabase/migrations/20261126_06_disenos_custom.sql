@@ -83,7 +83,7 @@ returns text[] language sql stable security definer set search_path = public as 
 $$;
 
 -- ¿Se pueden cambiar los diseños? Hasta que empiece la producción.
-create or replace function public._designs_open(o public.orders) returns boolean language sql stable as $$
+create or replace function public._designs_open(o public.orders) returns boolean language sql stable set search_path = public as $$
   select o.fulfillment_status in ('pending_confirmation', 'confirmed');
 $$;
 
