@@ -271,6 +271,8 @@ end $$;
 select t.ok(jsonb_array_length(public.get_order_designs(current_setting('t.dtok')) -> 'lines') = 2, 'diseños: el pedido lista sus 2 líneas KOVA CUSTOM');
 select t.ok((public.get_order_designs(current_setting('t.dtok')) #> '{lines,0,faces}') = '["front","back"]'::jsonb, 'diseños: CLASSIC lleva frente y espalda');
 select t.ok((public.get_order_designs(current_setting('t.dtok')) #> '{lines,1,faces}') = '["front"]'::jsonb, 'diseños: MINI solo lleva frente');
+select t.ok(jsonb_array_length(public.get_order_designs(current_setting('t.tok2')) -> 'lines') = 0, 'diseños: un pedido sin KOVA CUSTOM no muestra la sección de diseños');
+select t.fails($$select public.request_design_upload(current_setting('t.tok3'), 1, 'front', 'png')$$, 'no es de KOVA CUSTOM', 'diseños: una camiseta normal o de preventa no recibe diseños');
 select t.fails($$select public.get_order_designs(repeat('b', 64))$$, 'No encontramos', 'diseños: sin el token correcto no se ve nada');
 select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 2, 'back', 'png')$$, 'no lleva estampado', 'diseños: no se sube a una cara que no se estampa');
 select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 1, 'front', 'svg')$$, 'PNG, JPG, WEBP o PDF', 'diseños: SVG y otros tipos rechazados');
