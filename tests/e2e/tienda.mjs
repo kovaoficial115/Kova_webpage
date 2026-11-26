@@ -23,6 +23,9 @@ async function newPage(viewport) {
     const res = await fetch(`http://localhost:54321${u.pathname}${u.search}`, { method: req.method(), headers: req.headers(), body: req.postDataBuffer() ?? undefined });
     route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body: Buffer.from(await res.arrayBuffer()) });
   });
+  // Cloudflare Turnstile simulado: entrega el token 'ok', que la base de pruebas acepta (00_supabase_stub.sql).
+  await ctx.route(/challenges\.cloudflare\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript',
+    body: "window.turnstile = { render(el, o) { setTimeout(() => o.callback('ok'), 50); return 'w1'; }, remove() {} };" }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|api\.fontshare\.com|cdn\.fontshare\.com/, (r) => r.abort());
   const page = await ctx.newPage();
   page.errors = [];

@@ -323,4 +323,42 @@ select t.as_anon();
 select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 1, 'back', 'png')$$, 'en producción', 'diseños: en producción ya no se cambian desde la página');
 select t.ok((public.get_order_designs(current_setting('t.dtok')) ->> 'can_upload')::boolean = false, 'diseños: la página sabe que ya no se pueden cambiar');
 reset role;
+-- ============ Anti-bots: Turnstile y límite de pedidos por persona ============
+select t.as_anon();
+select t.fails($$select public._create_order_core(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee00', '', 'full', 'bot@test.co'))$$,
+  'permission denied', 'anti-bots: la función interna no se puede llamar con la clave pública');
+select t.fails($$select extensions.http_post('https://x', '', '')$$, 'permission denied', 'anti-bots: la clave pública no puede hacer llamadas de red');
+reset role;
+insert into kova_private.secrets (name, value) values ('turnstile_secret', convert_to('secreto-prueba', 'UTF8'));
+update public.product_variants set stock_on_hand = 100 where product_id = 'tee-normal';
+delete from public.rate_limits;
+select t.as_anon();
+select t.fails($$select public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee01', '', 'full', 'gil@test.co'))$$,
+  'eres una persona', 'anti-bots: sin token no se crea el pedido');
+select t.fails($$select public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee02', '', 'full', 'gil@test.co') || '{"captcha":"falso"}')$$,
+  'eres una persona', 'anti-bots: token rechazado por Cloudflare no crea el pedido');
+select t.ok(public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee03', '', 'full', 'gil@test.co') || '{"captcha":"ok"}') ? 'token',
+  'anti-bots: token válido crea el pedido');
+select t.ok((public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee03', '', 'full', 'gil@test.co')) ->> 'duplicate')::boolean,
+  'anti-bots: el reintento del mismo pedido no pide token otra vez');
+select t.ok(public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee04', '', 'full', 'gil@test.co') || '{"captcha":"caido"}') ? 'token',
+  'anti-bots: si Cloudflare no responde, la venta sigue');
+select t.ok(public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee05', '', 'full', 'gil@test.co') || '{"captcha":"ok"}') ? 'token',
+  'límite: el tercer pedido de la hora entra');
+select t.fails($$select public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee06', '', 'full', 'gil@test.co') || '{"captcha":"ok"}')$$,
+  'varios pedidos en poco tiempo', 'límite: el cuarto pedido en una hora con el mismo correo se frena');
+reset role;
+select set_config('t.gilphone', (select whatsapp from public.orders where idempotency_key = 'k-eeeeeeeeeeeeeee03'), false);
+update public.orders set created_at = now() - interval '2 hours' where email = 'gil@test.co';
+select t.as_anon();
+select t.ok(public.create_order(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee09', '', 'full', 'gil@test.co') || '{"captcha":"ok"}') ? 'token',
+  'límite: pasada la hora, el mismo cliente puede volver a pedir');
+reset role;
+update public.admin_settings set value = value || '{"max_orders_per_day_per_person": 4}' where key = 'general';
+select t.as_anon();
+select t.fails(format($$select public.create_order(jsonb_set(t.order_payload(t.cart('tee-normal', 'M', ''), 'k-eeeeeeeeeeeeeee10', '', 'full', 'cambio@test.co'), '{buyer,whatsapp}', %L) || '{"captcha":"ok"}')$$,
+  to_jsonb(current_setting('t.gilphone'))::text), 'varios pedidos', 'límite: cambiar el correo con el mismo WhatsApp no salta el límite diario (se ajusta desde la configuración)');
+reset role;
+delete from kova_private.secrets where name = 'turnstile_secret';
+select t.ok((select (value ->> 'max_orders_per_hour_per_person')::int = 3 from public.admin_settings where key = 'general'), 'límite: 3 por hora por defecto');
 select 'TODAS LAS PRUEBAS PASARON' as resultado;

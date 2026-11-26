@@ -7,3 +7,5 @@ select public.admin_campaign_status((select id from public.preorder_campaigns wh
 insert into public.promo_codes (code, name, discount_type, percent, status, starts_at)
   values ('prueba10', 'Prueba local', 'percent', 10, 'active', now() - interval '1 hour');
 insert into public.admins (user_id, role) values ('00000000-0000-0000-0000-0000000000b2', 'production') on conflict do nothing;
+-- Verificador anti-bots encendido, como en producción (el token 'ok' del simulador es el único válido).
+insert into kova_private.secrets (name, value) values ('turnstile_secret', convert_to('secreto-prueba', 'UTF8')) on conflict (name) do nothing;
