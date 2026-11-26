@@ -91,6 +91,12 @@ select.field__input { appearance: none; padding-right: 40px; cursor: pointer;
   .adm-top__brand img { width: 104px; }
   .adm-top__nav { gap: 12px; }
 }
+/* Móviles angostos: la barra superior pasa a dos filas en lugar de montar el enlace sobre el logo. */
+.adm-top__brand, .adm-top__nav .btn { flex: none; }
+@media (max-width: 420px) {
+  .adm-top { flex-wrap: wrap; row-gap: 8px; }
+  .adm-top__nav { margin-left: auto; }
+}
 .adm-main { flex: 1; padding-bottom: 60px; }
 .adm-wrap { width: 100%; max-width: 1320px; margin-inline: auto; padding: clamp(24px, 4vw, 44px) var(--gutter) 0; }
 
@@ -353,11 +359,11 @@ select.field__input { appearance: none; padding-right: 40px; cursor: pointer;
 .adm-tabs a.is-active { color: var(--arena); border-bottom-color: var(--scarlet); }
 
 /* ---------- Ajustes (KOVA Custom, pagos) ---------- */
-.adm-set { display: grid; gap: 22px; }
+.adm-set { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
 .adm-set .adm-head { margin-bottom: 0; }
 .adm-note { font-size: 14px; color: var(--muted); max-width: 80ch; }
 .adm-alert--info { border-left-color: var(--navy); background: rgb(0 0 31 / .05); margin-bottom: 0; }
-.adm-table-wrap { overflow-x: auto; margin-bottom: 14px; }
+.adm-table-wrap { position: relative; overflow-x: auto; margin-bottom: 14px; }
 .adm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .adm-table th, .adm-table td { padding: 8px 6px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
 .adm-table thead th { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
@@ -384,7 +390,8 @@ select.field__input { appearance: none; padding-right: 40px; cursor: pointer;
 
 .adm-colors, .adm-pays { display: grid; gap: 12px; margin: 0 0 14px; padding: 0; list-style: none; }
 .adm-colorrow { display: grid; grid-template-columns: auto auto minmax(140px, 1fr) auto auto auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-@media (max-width: 760px) { .adm-colorrow { grid-template-columns: auto auto 1fr auto; } .adm-colorimg { grid-column: span 2; } }
+@media (max-width: 760px) { .adm-colorrow { grid-template-columns: auto auto minmax(0, 1fr) auto; } .adm-colorimg { grid-column: span 2; } }
+@media (max-width: 420px) { .adm-colorimg { grid-column: 1 / -1; } }
 .adm-colorimg { display: grid; grid-template-columns: 54px auto; grid-template-rows: auto auto; gap: 2px 8px; align-items: center; }
 .adm-colorimg__media { grid-row: span 2; width: 54px; aspect-ratio: 6 / 7; background: rgb(0 0 31 / .06); overflow: hidden; }
 .adm-colorimg__media img, .adm-colorimg__media svg { width: 100%; height: 100%; object-fit: contain; }
@@ -479,7 +486,7 @@ select.field__input { appearance: none; padding-right: 40px; cursor: pointer;
 /* Detalle del pedido */
 .adm-detail { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 0 20px; align-items: start; }
 .adm-detail__main > .adm-card:first-child, .adm-detail__side > .adm-card:first-child { margin-top: 0; }
-@media (max-width: 1000px) { .adm-detail { grid-template-columns: 1fr; } .adm-detail__side > .adm-card:first-child { margin-top: 16px; } }
+@media (max-width: 1000px) { .adm-detail { grid-template-columns: minmax(0, 1fr); } .adm-detail__side > .adm-card:first-child { margin-top: 16px; } }
 .adm-paylist { display: grid; gap: 10px; }
 .adm-paym { padding: 12px 14px; border: 1px solid var(--line); background: var(--white); }
 .adm-paym--submitted, .adm-paym--verifying { border-left: 4px solid #c98a2e; }
@@ -501,7 +508,7 @@ select.field__input { appearance: none; padding-right: 40px; cursor: pointer;
 .adm-check input { width: 18px; height: 18px; accent-color: var(--navy); }
 
 /* Preventas */
-.adm-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin: 18px 0; }
+.adm-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 16px; margin: 18px 0; }
 .adm-camp { display: grid; gap: 10px; align-content: start; padding: 18px; border: 1px solid var(--line); background: rgb(255 255 255 / .5); }
 .adm-camp__top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: center; }
 .adm-camp__name { font-size: 30px; }

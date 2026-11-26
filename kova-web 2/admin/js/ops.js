@@ -171,8 +171,8 @@ export function barChart({ id, title, data, series, money = false, empty = 'Sin 
       <div class="adm-chart__tip" hidden></div>
     </div>
     <details class="adm-chart__table"><summary>Ver tabla</summary>
-      <table class="adm-table"><thead><tr><th>Periodo</th>${series.map((s) => `<th class="num">${esc(s)}</th>`).join('')}</tr></thead>
-      <tbody>${data.map((d) => `<tr><td>${esc(d.label)}</td>${d.values.map((v) => `<td class="num">${money ? formatPrice(v) : v}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>Periodo</th>${series.map((s) => `<th class="num">${esc(s)}</th>`).join('')}</tr></thead>
+      <tbody>${data.map((d) => `<tr><td>${esc(d.label)}</td>${d.values.map((v) => `<td class="num">${money ? formatPrice(v) : v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     </details>
   </figure>`;
 }

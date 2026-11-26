@@ -36,7 +36,10 @@ export function renderHeader() {
     ${marquee()}
     <div class="header__bar">
       <a class="header__logo" href="index.html" aria-label="${esc(CONFIG.brand.name)} Streetwear — inicio">
-        <img src="${CONFIG.brand.logo}" alt="${esc(CONFIG.brand.name)} Streetwear" width="640" height="262">
+        <picture>
+          <source media="(max-width: 359px)" srcset="${CONFIG.brand.mark}" width="360" height="405">
+          <img src="${CONFIG.brand.logo}" alt="${esc(CONFIG.brand.name)} Streetwear" width="640" height="262">
+        </picture>
       </a>
       <nav class="nav" id="site-nav" aria-label="Principal">
         <ul class="nav__list">${nav}</ul>
@@ -65,7 +68,7 @@ export function initHeader(root) {
   toggle.addEventListener('click', () => setOpen(!root.classList.contains('is-open')));
   root.querySelectorAll('.nav a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
   document.addEventListener('keydown', (e) => e.key === 'Escape' && setOpen(false));
-  matchMedia('(min-width: 1101px)').addEventListener('change', (e) => e.matches && setOpen(false));
+  matchMedia('(min-width: 1280px)').addEventListener('change', (e) => e.matches && setOpen(false));
 
   const links = [...root.querySelectorAll('.nav__list a')];
 

@@ -354,6 +354,10 @@
   .cartpage .cart-line:first-child { border-top: 1px solid var(--fg); }
   .cartpage__empty .btn { width: 100%; }
 }
+@media (max-width: 480px) {
+  /* Pantallas angostas: cantidad y subtotal pasan a una fila propia a todo el ancho para que no se salgan. */
+  .cartpage .cart-line { grid-template-areas: "media info remove" "qty qty subtotal"; align-items: center; }
+}
 
 /* ---------- Banda KOVA CUSTOM en la portada ---------- */
 .custom-band { padding-block: clamp(48px, 7vw, 96px); border-top: 1px solid var(--line); }

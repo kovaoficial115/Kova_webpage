@@ -47,6 +47,13 @@
 .header__logo { flex: none; margin-right: auto; }
 .header__logo img { width: 200px; height: auto; transition: transform .5s var(--ease-out); }
 .header__logo:hover img { transform: scale(1.03); }
+.header__toggle, .header__cart { flex: none; }
+/* Pantallas de menos de 360 px: el logotipo principal no cabe a 200 px junto al carrito y el menú,
+   así que se usa la marca responsive (Manual 2.3) en lugar de reducirlo. */
+@media (max-width: 359px) {
+  .header__logo img { width: auto; height: 60px; }
+  .header__bar { gap: 10px; }
+}
 
 .nav { display: flex; align-items: center; gap: 28px; }
 .nav__list { display: flex; gap: 2px; }
@@ -86,7 +93,7 @@
 .is-open .header__toggle span:nth-child(1) { top: 25px; transform: rotate(45deg); }
 .is-open .header__toggle span:nth-child(2) { top: 25px; transform: rotate(-45deg); }
 
-@media (max-width: 1100px) {
+@media (max-width: 1279px) {
   .header__toggle { display: block; }
   /* Menú a pantalla completa con la retícula del manual y enlaces en Anton. */
   .nav {
@@ -119,7 +126,7 @@
     border-bottom: 1px solid var(--line);
     font-family: var(--f-display);
     font-weight: 400;
-    font-size: clamp(40px, 11vw, 64px);
+    font-size: clamp(34px, min(11vw, 6.5vh), 64px); /* también según el alto: en portátiles el menú cabe sin desplazarse */
     line-height: 1;
     letter-spacing: .01em;
   }
@@ -517,7 +524,7 @@
   font-variant-numeric: tabular-nums;
 }
 .header__cartCount[hidden], .cart-fab__count[hidden] { display: none; }
-@media (max-width: 1100px) {
+@media (max-width: 1279px) {
   .header__cart { width: 52px; height: 52px; padding: 0; justify-content: center; border-color: var(--line-strong); }
   .header__cartLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .header__cartCount { position: absolute; top: -9px; right: -9px; border: 2px solid var(--navy); min-width: 26px; height: 26px; }
@@ -819,18 +826,25 @@ body:not([data-page="cart"]) .footer { padding-bottom: 104px; }
 /* El botón de enviar queda siempre a mano aunque el resumen sea largo. */
 .checkout-notice .modal__cta { position: sticky; bottom: 12px; z-index: 2; margin-top: 18px; box-shadow: 0 10px 30px rgb(0 0 31 / .55); }
 
-/* Cabecera en portátiles (1101–1440 px): con 6 enlaces + Instagram + carrito no cabía y desbordaba
-   la página hacia la derecha. Se compacta sin esconder el menú. */
-@media (min-width: 1101px) {
+/* Cabecera de escritorio: 6 enlaces + Instagram + carrito no cabían en el contenedor (1288 px útiles)
+   y el carrito se salía por la derecha. Debajo de 1280 px se usa el menú desplegable; de 1280 a 1440
+   se compacta (carrito solo con ícono) y desde 1441 se quitan los números para que quepa el texto
+   «Carrito». El logotipo se mantiene a 200 px (mínimo del manual, 2.6). */
+@media (min-width: 1280px) {
   .nav__list a { white-space: nowrap; }
-}
-@media (min-width: 1101px) and (max-width: 1440px) {
-  .header__bar { gap: 16px; }
-  .header__logo img { width: 168px; }
-  .nav { gap: 14px; }
   .nav__num { display: none; }
+  .nav__cta { padding-inline: 16px; }
+}
+@media (min-width: 1280px) and (max-width: 1440px) {
+  .header__bar { gap: 16px; }
+  .nav { gap: 14px; }
   .nav__list a { padding: 10px 8px; font-size: 13px; letter-spacing: .07em; }
   .header__cart { width: 44px; min-height: 44px; padding: 0; justify-content: center; }
   .header__cartLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .header__cartCount { position: absolute; top: -9px; right: -9px; border: 2px solid var(--navy); min-width: 24px; height: 24px; }
+}
+@media (min-width: 1441px) {
+  .header__bar { gap: 20px; }
+  .nav { gap: 18px; }
+  .nav__list a { padding: 10px 9px; letter-spacing: .07em; }
 }

@@ -162,6 +162,27 @@ for (const w of [1101, 1280, 1440, 1920]) {
   }
 }
 ok(true, 'cabecera y páginas sin desborde horizontal de 1101 a 1920 px');
+// El carrito y el menú de la cabecera deben quedar dentro de la barra en cualquier ancho (antes se cortaban de 1441 a 1920 px).
+{
+  const fuera = [];
+  for (const w of [320, 360, 390, 768, 1024, 1101, 1200, 1280, 1366, 1441, 1536, 1680, 1920, 2560]) {
+    await page2.setViewportSize({ width: w, height: 900 });
+    await page2.goto(`${SITE}/carrito.html`);
+    await page2.waitForTimeout(300);
+    const d = await page2.evaluate(() => {
+      const bar = document.querySelector('.header__bar');
+      const limit = bar.getBoundingClientRect().right - parseFloat(getComputedStyle(bar).paddingRight) + 1;
+      const els = [...bar.querySelectorAll('.header__logo, .header__cart, .header__toggle, .nav__cta')].filter((e) => e.getClientRects().length && getComputedStyle(e).display !== 'none');
+      const nav = document.querySelector('.nav');
+      const navFixed = getComputedStyle(nav).position === 'fixed';
+      const over = els.filter((e) => !(navFixed && nav.contains(e)) && e.getBoundingClientRect().right > limit).map((e) => e.className.split(' ')[0]);
+      const sw = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+      return { over, sw };
+    });
+    if (d.over.length || d.sw > 0) fuera.push(`${w}px: ${d.over.join(', ') || `desborde ${d.sw}px`}`);
+  }
+  ok(!fuera.length, `cabecera: carrito, menú e Instagram caben de 320 a 2560 px${fuera.length ? ` (falla en ${fuera.join(' · ')})` : ''}`);
+}
 await page2.setViewportSize({ width: 1280, height: 900 });
 await page2.goto(`${SITE}/condiciones.html`);
 await page2.waitForTimeout(800);
