@@ -151,24 +151,28 @@ let quote = null;
 let quoting = 0;
 let quoteTimer;
 
+/** Modalidad que fija la campaña: 'full' (solo pago completo), 'deposit' (solo anticipo) o null (el cliente elige). */
+const forcedPlan = (c) => (!c ? null : c.deposit_pct >= 100 ? 'full' : !c.allow_full_payment ? 'deposit' : null);
+const planSig = (c) => (c ? `${c.deposit_pct}|${c.allow_full_payment}` : '');
+
 function planHtml(q) {
   const c = q?.campaign;
   if (!c) return '';
-  const plan = getBuyer().plan || 'deposit';
+  const forced = forcedPlan(c);
+  const plan = forced || getBuyer().plan || 'deposit';
+  const opt = (value, title, text) => `
+        <label class="co-option">
+          <input type="radio" name="plan" value="${value}"${plan === value ? ' checked' : ''}>
+          <span><strong>${title}</strong><small>${text}</small></span>
+        </label>`;
+  const dep = opt('deposit', `Anticipo del ${c.deposit_pct}%`, 'Pagas una parte ahora y el saldo antes del despacho.');
+  const full = opt('full', 'Pago completo', 'Pagas el 100% ahora y no quedan saldos.');
   return `
-    <div class="field" data-field="plan">
-      <span class="field__label">Modalidad de pago de la preventa <span aria-hidden="true">*</span></span>
-      <div class="co-options co-options--plan" role="radiogroup">
-        <label class="co-option">
-          <input type="radio" name="plan" value="deposit"${plan !== 'full' ? ' checked' : ''}>
-          <span><strong>Anticipo del ${c.deposit_pct}%</strong><small>Pagas una parte ahora y el saldo antes del despacho.</small></span>
-        </label>
-        ${c.allow_full_payment ? `
-        <label class="co-option">
-          <input type="radio" name="plan" value="full"${plan === 'full' ? ' checked' : ''}>
-          <span><strong>Pago completo</strong><small>Pagas el 100% ahora y no quedan saldos.</small></span>
-        </label>` : ''}
+    <div class="field" data-field="plan" data-plan-sig="${planSig(c)}">
+      <span class="field__label">Modalidad de pago de la preventa${forced ? '' : ' <span aria-hidden="true">*</span>'}</span>
+      <div class="co-options co-options--plan" role="radiogroup">${forced === 'full' ? full : forced === 'deposit' ? dep : dep + full}
       </div>
+      ${forced ? `<span class="field__hint">${forced === 'full' ? 'Esta preventa se paga completa al reservar.' : 'Esta preventa se reserva con anticipo; el saldo se paga antes del despacho.'}</span>` : ''}
     </div>`;
 }
 
@@ -206,10 +210,12 @@ async function refreshQuote() {
       p_email: b.email || '', p_phone: b.phone || '', p_plan: b.plan || 'deposit', p_shipping: b.shipping || '',
     });
     if (my !== quoting) return;
+    const forced = forcedPlan(q.campaign);
+    if (forced && (b.plan || 'deposit') !== forced) { setBuyer({ plan: forced }); return queueQuote(0); }
     quote = q;
     box.innerHTML = quoteHtml(q);
     const planBox = main.querySelector('[data-plan]');
-    if (Boolean(q.campaign) !== Boolean(planBox.querySelector('[name="plan"]'))) planBox.innerHTML = planHtml(q);
+    if (planSig(q.campaign) !== (planBox.querySelector('[data-plan-sig]')?.dataset.planSig ?? '')) planBox.innerHTML = planHtml(q);
     setState('');
     main.querySelector('[data-submit]').disabled = false;
     main.querySelector('[data-submit-label]').textContent = q.campaign ? 'Reservar ahora' : 'Registrar pedido';

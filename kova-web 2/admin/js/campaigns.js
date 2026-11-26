@@ -59,7 +59,7 @@ export async function renderCampaigns(view) {
             <div><dt>Cierra</dt><dd>${c.closes_at ? esc(dt(c.closes_at)) : '<span class="adm-bad">Sin fecha</span>'}</dd></div>
             <div><dt>Despacho</dt><dd>${c.est_dispatch_date ? esc(dateOnly(c.est_dispatch_date)) : '<span class="adm-bad">Sin fecha</span>'}</dd></div>
             <div><dt>Unidades</dt><dd>${u}${c.max_units ? ` / ${c.max_units}` : ' (sin límite)'}</dd></div>
-            <div><dt>Anticipo</dt><dd>${c.deposit_pct}%${c.allow_full_payment ? ' · o pago total' : ''}</dd></div>
+            <div><dt>Pago</dt><dd>${esc(payModeText(c))}</dd></div>
           </dl>
           ${c.max_units ? `<div class="adm-meter" role="meter" aria-valuemin="0" aria-valuemax="${c.max_units}" aria-valuenow="${u}" aria-label="Cupo usado"><span style="width:${Math.min(100, (u / c.max_units) * 100)}%"></span></div>` : ''}
           <div class="adm-camp__actions">
@@ -129,6 +129,10 @@ export async function renderCampaign(view, id) {
   } catch (err) { errorBox(view, err, () => renderCampaign(view, id)); }
 }
 
+/** Modalidad de pago de la campaña, derivada de deposit_pct + allow_full_payment. */
+const payMode = (c) => (c.deposit_pct >= 100 ? 'full' : c.allow_full_payment ? 'both' : 'deposit');
+const payModeText = (c) => ({ full: 'Solo pago completo', deposit: `Solo anticipo (${c.deposit_pct}%)`, both: `Anticipo ${c.deposit_pct}% o pago completo` })[payMode(c)];
+
 const inp = (name, label, value, { type = 'text', hint = '', attrs = '', req = false } = {}) => `
   <label class="field" data-field="${name}"><span class="field__label">${esc(label)}${req ? ' <span>*</span>' : ''}</span>
     ${type === 'textarea' ? `<textarea class="field__input" name="${name}" rows="4" ${attrs}>${esc(value ?? '')}</textarea>` : `<input class="field__input" name="${name}" type="${type}" value="${esc(value ?? '')}" ${attrs}>`}
@@ -178,11 +182,16 @@ function drawEditor(view, c, products, links, limits, used, isNew) {
       </section>
 
       <section class="adm-card"><h2 class="adm-card__title">Pago</h2>
-        <div class="adm-two">${inp('deposit_pct', 'Anticipo (%)', c.deposit_pct, { req: true, attrs: 'inputmode="numeric"', hint: 'Se calcula sobre el precio después del descuento.' })}
+        <fieldset class="field adm-paymode"><legend class="field__label">Cómo paga el cliente al reservar <span>*</span></legend>
+          ${[['full', 'Solo pago completo', 'El cliente paga el 100% al reservar.'],
+            ['deposit', 'Solo anticipo', 'Paga el % de anticipo y el saldo antes del despacho.'],
+            ['both', 'Anticipo o pago completo', 'El cliente elige en el checkout.']].map(([v, t, h]) => `
+          <label class="adm-radio"><input type="radio" name="pay_mode" value="${v}"${payMode(c) === v ? ' checked' : ''}><span><b>${t}</b><small>${h}</small></span></label>`).join('')}
+        </fieldset>
+        <div class="adm-two">${inp('deposit_pct', 'Anticipo (%)', c.deposit_pct >= 100 ? '' : c.deposit_pct, { attrs: 'inputmode="numeric"', hint: 'Entre 1 y 99. Se calcula sobre el precio después del descuento.' })}
           <label class="field"><span class="field__label">El envío se cobra</span><select class="field__input" name="shipping_charge">
             <option value="balance"${c.shipping_charge === 'balance' ? ' selected' : ''}>Con el saldo (antes del despacho)</option>
             <option value="reservation"${c.shipping_charge === 'reservation' ? ' selected' : ''}>Con la reserva</option></select></label></div>
-        ${sw('allow_full_payment', 'Permitir pagar el 100% al reservar', c.allow_full_payment)}
         ${sw('allow_promo_codes', 'Permitir códigos promocionales', c.allow_promo_codes)}
       </section>
 
@@ -228,6 +237,10 @@ function drawEditor(view, c, products, links, limits, used, isNew) {
     const item = cb.closest('[data-pp]'); item.classList.toggle('is-on', cb.checked); item.querySelector('.adm-pp__more').hidden = !cb.checked;
   }));
   bindStatus(view, () => renderCampaign(view, c.id));
+  const depField = form.querySelector('[data-field="deposit_pct"]');
+  const syncPay = () => { depField.hidden = form.querySelector('[name="pay_mode"]:checked')?.value === 'full'; };
+  form.querySelectorAll('[name="pay_mode"]').forEach((r) => r.addEventListener('change', syncPay));
+  syncPay();
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = form.querySelector('[data-msg]');
@@ -245,15 +258,22 @@ function drawEditor(view, c, products, links, limits, used, isNew) {
       name: v('name'), slug: v('slug'), drop_name: v('drop_name'), description: v('description'), banner_url: v('banner_url'),
       order_prefix: v('order_prefix').toUpperCase(), opens_at: when('opens_at', 'apertura'), closes_at: when('closes_at', 'cierre'),
       est_dispatch_date: v('est_dispatch_date') || null, est_delivery_date: v('est_delivery_date') || null,
-      hold_minutes: intOrNull(v('hold_minutes')), verification_hours: intOrNull(v('verification_hours')), deposit_pct: intOrNull(v('deposit_pct')),
-      shipping_charge: v('shipping_charge'), allow_full_payment: chk('allow_full_payment'), allow_promo_codes: chk('allow_promo_codes'),
+      hold_minutes: intOrNull(v('hold_minutes')), verification_hours: intOrNull(v('verification_hours')), deposit_pct: null,
+      shipping_charge: v('shipping_charge'), allow_promo_codes: chk('allow_promo_codes'),
       max_units: intOrNull(v('max_units')), max_per_customer: intOrNull(v('max_per_customer')), auto_close_on_limit: chk('auto_close_on_limit'),
       show_countdown: chk('show_countdown'), show_availability: chk('show_availability'), terms: v('terms'),
     };
     if (!row.name) errs.push('el nombre');
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(row.slug)) errs.push('un identificador válido');
     if (!/^[A-Z0-9]{2,6}$/.test(row.order_prefix)) errs.push('un prefijo de 2 a 6 letras o números');
-    if (!row.deposit_pct || row.deposit_pct < 1 || row.deposit_pct > 100) errs.push('un anticipo entre 1 y 100%');
+    const mode = form.querySelector('[name="pay_mode"]:checked')?.value;
+    if (!mode) errs.push('cómo paga el cliente');
+    else if (mode === 'full') Object.assign(row, { deposit_pct: 100, allow_full_payment: true });
+    else {
+      const pct = intOrNull(v('deposit_pct'));
+      if (!pct || pct < 1 || pct > 99) errs.push('un anticipo entre 1 y 99%');
+      Object.assign(row, { deposit_pct: pct, allow_full_payment: mode === 'both' });
+    }
     if (row.opens_at && row.closes_at && row.closes_at <= row.opens_at) errs.push('un cierre posterior a la apertura');
     if (row.hold_minutes != null && (row.hold_minutes < 5 || row.hold_minutes > 20160)) errs.push('una vigencia de reserva entre 5 minutos y 14 días');
     if (row.est_delivery_date && row.est_dispatch_date && row.est_delivery_date < row.est_dispatch_date) errs.push('una entrega posterior al despacho');

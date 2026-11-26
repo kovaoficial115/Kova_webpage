@@ -118,7 +118,8 @@ function renderPreorder(state) {
     c.est_dispatch_date && `<div><dt>Despacho estimado</dt><dd>${esc(dateText(c.est_dispatch_date))}</dd></div>`,
     c.est_delivery_date && `<div><dt>Entrega estimada</dt><dd>${esc(dateText(c.est_delivery_date))}</dd></div>`,
     `<div><dt>Precio completo</dt><dd>${formatPrice(product.price)}</dd></div>`,
-    pct < 100 && `<div><dt>Reserva mínima (${pct}%)</dt><dd>${formatPrice(depositOf(product.price, pct))}</dd></div>`,
+    pct >= 100 && `<div><dt>Pago</dt><dd>Completo al reservar</dd></div>`,
+    pct < 100 && `<div><dt>${c.allow_full_payment ? 'Reserva mínima' : 'Anticipo'} (${pct}%)</dt><dd>${formatPrice(depositOf(product.price, pct))}</dd></div>`,
     pct < 100 && `<div><dt>Saldo</dt><dd>Se paga antes del despacho${c.allow_full_payment ? ' · también puedes pagar el 100%' : ''}</dd></div>`,
     c.show_availability && Number.isInteger(info.remaining) && `<div><dt>Cupos disponibles</dt><dd data-remaining>${info.remaining}</dd></div>`,
   ].filter(Boolean).join('');

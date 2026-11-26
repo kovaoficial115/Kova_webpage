@@ -132,6 +132,27 @@ await page.click('.adm-tools [data-status="active"]');
 await dialogFill(page);
 await page.waitForTimeout(800);
 ok(!/fecha y hora de apertura/.test(await page.textContent('body')), 'preventas: con fechas guardadas, activar ya no pide la apertura');
+// Modalidad de pago: solo pago completo / solo anticipo / ambos.
+await page.goto(page.url()); await waitView(page, '[data-camp]');
+await page.check('[name="pay_mode"][value="full"]', { force: true });
+ok(await page.isHidden('[data-field="deposit_pct"]'), 'preventas: con "solo pago completo" se oculta el % de anticipo');
+await page.click('[data-save]');
+await page.waitForFunction(() => /Campaña guardada/.test(document.body.textContent), null, { timeout: 10000 }).catch(() => {});
+await waitView(page, '[data-camp]');
+ok(await page.isChecked('[name="pay_mode"][value="full"]'), 'preventas: se guarda "solo pago completo"');
+await page.check('[name="pay_mode"][value="deposit"]', { force: true });
+await page.fill('[name="deposit_pct"]', '40');
+await page.click('[data-save]');
+await page.waitForFunction(() => /Campaña guardada/.test(document.body.textContent), null, { timeout: 10000 }).catch(() => {});
+await waitView(page, '[data-camp]');
+ok(await page.isChecked('[name="pay_mode"][value="deposit"]') && await page.inputValue('[name="deposit_pct"]') === '40', 'preventas: se guarda "solo anticipo" del 40%');
+await page.waitForTimeout(600);
+await page.check('[name="pay_mode"][value="both"]', { force: true });
+await page.fill('[name="deposit_pct"]', '100');
+await page.click('[data-save]');
+await page.waitForTimeout(400);
+const m99 = await page.textContent('[data-msg]');
+ok(/anticipo entre 1 y 99/.test(m99), 'preventas: "ambos" exige un anticipo menor al 100%');
 
 // Códigos
 await tab(page, 'codigos', 'Códigos');
