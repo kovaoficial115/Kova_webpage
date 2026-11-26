@@ -121,6 +121,7 @@ const num = (ord.match(/KOVA-PSY-\d{6}|PSY-\d{6}/) || [])[0];
 ok(num, `seguimiento: número de pedido con prefijo de la campaña (${num})`);
 ok(/Solicitud registrada/.test(ord), 'seguimiento: banner de solicitud registrada');
 ok(/Pendiente/i.test(ord), 'seguimiento: estado pendiente hasta verificar el pago');
+ok(!(await page.$('#disenos')) && !/Tus diseños/.test(ord), 'seguimiento: un pedido sin KOVA CUSTOM no muestra «Tus diseños»');
 const wa = await page.getAttribute('[data-wa]', 'href');
 ok(wa.startsWith('https://wa.me/573116983724') && decodeURIComponent(wa).includes(num), 'seguimiento: WhatsApp con el número de pedido al número de KOVA');
 await page.screenshot({ path: `${SHOTS}/05-seguimiento.png`, fullPage: true });

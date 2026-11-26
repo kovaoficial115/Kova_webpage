@@ -320,7 +320,9 @@ async function load() {
   try {
     const o = await rpc('get_order_public', { p_token: token });
     rememberOrder({ number: o.number, token });
-    if (o.items.some((i) => i.custom)) designs = await rpc('get_order_designs', { p_token: token }).catch(() => designs);
+    // Solo pedidos con KOVA CUSTOM (las demás líneas traen custom vacío).
+    designs = null;
+    if (o.items.some((i) => i.custom?.mode_name)) designs = await rpc('get_order_designs', { p_token: token }).catch(() => designs);
     render(o);
     autoUploadDesigns();
   } catch (err) {
