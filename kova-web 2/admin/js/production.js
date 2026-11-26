@@ -4,6 +4,7 @@
  * Disponible para owner/admin y para el rol «production».
  */
 import { db } from './api.js';
+import { bindDesignFiles } from './orders.js';
 import { rpc, run, errText, esc, toast, dateOnly, loading, errorBox, head, kpi, setBusy, downloadCsv, pill, FULFILLMENT, FINANCIAL, KIND } from './ops.js';
 
 const CHECK = [['cut', 'Corte'], ['print', 'Estampado / bordado'], ['sewing', 'Confección'], ['qc', 'Control de calidad'], ['label', 'Etiquetado'], ['pack', 'Empaque'], ['guide', 'Guía generada']];
@@ -19,11 +20,22 @@ export async function renderProduction(view) {
       rpc('admin_production', { p_campaign: st.campaign || null }),
       rpc('admin_production_orders', { p_campaign: st.campaign || null, p_status: st.status || null }),
     ]);
-    draw(view, camps, sum, orders);
+    // Diseños vigentes de KOVA CUSTOM (la línea del pedido es la posición del artículo, desde 1).
+    const ids = orders.filter((o) => o.items.some((i) => i.custom)).map((o) => o.id);
+    const designs = ids.length ? (await run(db().from('order_design_files').select('order_id,line_no,face,file_name,path')
+      .in('order_id', ids).eq('status', 'active')).catch(() => ({ data: [] }))).data ?? [] : [];
+    draw(view, camps, sum, orders, designs);
   } catch (err) { errorBox(view, err, () => renderProduction(view)); }
 }
 
-function draw(view, camps, s, orders) {
+const FACE = { front: 'Frente', back: 'Espalda' };
+function designLinks(o, idx, designs) {
+  const mine = designs.filter((d) => d.order_id === o.id && d.line_no === idx + 1);
+  if (!mine.length) return ' <small class="adm-bad">Diseño pendiente</small>';
+  return mine.map((d) => ` <button class="adm-link" type="button" data-design="${esc(d.path)}" data-dl="${esc(d.file_name)}" title="${esc(d.file_name)}">⤓ ${FACE[d.face]}</button>`).join('');
+}
+
+function draw(view, camps, s, orders, designs = []) {
   const sizes = [...new Set(s.matrix.map((m) => m.size))];
   const rowsKey = [...new Set(s.matrix.map((m) => `${m.name}|${m.color}`))];
   const cell = (k, size) => s.matrix.filter((m) => `${m.name}|${m.color}` === k && m.size === size).reduce((n, m) => n + m.units, 0);
@@ -66,7 +78,7 @@ function draw(view, camps, s, orders) {
         <tbody>${orders.map((o) => { const done = CHECK.filter(([k]) => o.checklist?.[k]).length; return `<tr>
           <td><input type="checkbox" data-sel="${o.id}"${st.selected.has(o.id) ? ' checked' : ''} aria-label="Seleccionar ${esc(o.number)}"></td>
           <td class="adm-strong">${esc(o.number)}<small>${esc(KIND[o.kind] ?? '')}${o.balance_due ? ' · <b>saldo pendiente</b>' : ''}</small></td>
-          <td>${o.items.map((i) => `<div>${i.qty} × ${esc(i.name)} <small>${esc([i.color, i.size, i.custom?.mode_label].filter(Boolean).join(' · '))}</small></div>`).join('')}</td>
+          <td>${o.items.map((i, idx) => `<div>${i.qty} × ${esc(i.name)} <small>${esc([i.color, i.size, i.custom?.mode_label].filter(Boolean).join(' · '))}</small>${i.custom ? designLinks(o, idx, designs) : ''}</div>`).join('')}</td>
           <td>${esc(o.city)}</td><td>${pill(o.fulfillment_status, FULFILLMENT)}${o.balance_due ? `<small>${esc(FINANCIAL[o.financial_status])}</small>` : ''}</td>
           <td>${o.est_dispatch_date ? esc(dateOnly(o.est_dispatch_date)) : '—'}</td>
           <td><details class="adm-ck"><summary>${done}/${CHECK.length}</summary>${CHECK.map(([k, l]) => `<label class="adm-check"><input type="checkbox" data-ck="${o.id}" data-k="${k}"${o.checklist?.[k] ? ' checked' : ''}> ${esc(l)}</label>`).join('')}</details></td>
@@ -74,6 +86,7 @@ function draw(view, camps, s, orders) {
     </section>
   </div>`;
 
+  bindDesignFiles(view);
   view.querySelector('[data-camp]').addEventListener('change', (e) => { st.campaign = e.target.value; st.selected.clear(); history.replaceState(null, '', '#/produccion'); renderProduction(view); });
   view.querySelector('[data-status]').addEventListener('change', (e) => { st.status = e.target.value; renderProduction(view); });
   const bulk = view.querySelector('[data-bulk]');

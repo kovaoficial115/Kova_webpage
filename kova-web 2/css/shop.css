@@ -179,6 +179,19 @@ a.card__add { text-decoration: none; }
 .o-upload { display: grid; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
 .o-upload__file { height: auto; padding: 12px; }
 .o-upload__hint { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+/* Diseños de KOVA CUSTOM en la página del pedido */
+.o-dline { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.o-dline__name { margin-bottom: 6px; font-size: 14.5px; }
+.o-drow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 0; }
+.o-drow__face { min-width: 72px; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.o-drow progress { flex: 1 1 160px; height: 6px; accent-color: var(--scarlet); }
+.o-drow .field__error { flex-basis: 100%; margin: 0; }
+.o-dstate { font-size: 14px; overflow-wrap: anywhere; }
+.o-dstate small { color: var(--muted); }
+.o-dstate.is-ok { color: inherit; }
+.o-dstate.is-off { font-weight: 700; color: var(--scarlet-deep); }
+.o-dpick { cursor: pointer; }
+.o-dpick:focus-within { outline: 2px solid var(--scarlet); outline-offset: 2px; }
 .o-history { display: grid; gap: 0; }
 .o-history li { display: grid; gap: 3px; padding: 10px 0 10px 18px; border-left: 2px solid var(--line); position: relative; }
 .o-history li::before { content: ''; position: absolute; left: -5px; top: 15px; width: 8px; height: 8px; border-radius: 50%; background: var(--scarlet); }

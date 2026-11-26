@@ -51,19 +51,29 @@ export async function rpc(fn, args = {}, { timeoutMs = 15000 } = {}) {
   }
 }
 
-/** Sube un archivo a una ruta reservada por el servidor (bucket privado de comprobantes). */
-export async function uploadToReservedPath(bucket, path, file) {
-  const res = await fetch(`${base()}/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`, {
-    method: 'POST',
-    headers: { ...publicHeaders(), Authorization: `Bearer ${B.supabaseAnonKey}`, 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'false' },
-    body: file,
+/**
+ * Sube un archivo a una ruta reservada por el servidor (buckets privados de comprobantes y diseños).
+ * `maxMb` solo cambia el mensaje de error; el límite real lo pone el bucket.
+ * `onProgress(fracción 0–1)` opcional: muestra el avance en archivos grandes.
+ */
+export function uploadToReservedPath(bucket, path, file, { maxMb = 8, onProgress = null, kind = 'una imagen o un PDF' } = {}) {
+  const url = `${base()}/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
+  const headers = { ...publicHeaders(), Authorization: `Bearer ${B.supabaseAnonKey}`, 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'false' };
+  const fail = (status, body) => {
+    if (status === 413 || /too large|maximum|exceeded/i.test(body)) return new ApiError(`El archivo es demasiado pesado (máximo ${maxMb} MB).`, { friendly: true });
+    if (/mime/i.test(body)) return new ApiError(`Formato no permitido. Sube ${kind}.`, { friendly: true });
+    if (status === 0) return new ApiError('Se cortó la conexión mientras subía el archivo. Inténtalo de nuevo.', { friendly: true });
+    return new ApiError('No se pudo subir el archivo. Inténtalo de nuevo.', { friendly: true });
+  };
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    if (onProgress) xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(fail(xhr.status, xhr.responseText || '')));
+    xhr.onerror = () => reject(fail(0, ''));
+    xhr.send(file);
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    if (res.status === 413 || /too large|maximum/i.test(body)) throw new ApiError('El archivo es demasiado pesado (máximo 8 MB).', { friendly: true });
-    if (/mime/i.test(body)) throw new ApiError('Formato no permitido. Sube una imagen o un PDF.', { friendly: true });
-    throw new ApiError('No se pudo subir el archivo. Inténtalo de nuevo.', { friendly: true });
-  }
 }
 
 /** Huella SHA-256 del archivo (evita registrar el mismo comprobante dos veces). */

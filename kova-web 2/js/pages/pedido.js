@@ -11,6 +11,7 @@ import { getPayments } from '../services/settings.js';
 import { paymentDetailHtml, dateText } from '../components/cartView.js';
 import { buildRegisteredOrderMessage, whatsappUrl, copyText } from '../services/contact.js';
 import { myOrders, trackingUrl, rememberOrder } from '../services/orders.js';
+import { getDesigns, removeDesign } from '../services/designStore.js';
 import { FINANCIAL, FULFILLMENT, FULFILLMENT_STEPS, PAYMENT_KIND, PAYMENT_STATUS, tone } from '../data/orderStatus.js';
 import { formatPrice } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
@@ -64,8 +65,7 @@ function render(o) {
   const isPre = o.kind === 'preorder' || o.kind === 'mixed';
   const pendingSum = o.payments.filter((p) => ['submitted', 'verifying'].includes(p.status)).reduce((n, p) => n + p.amount, 0);
   const payNow = Math.max((o.paid_total === 0 ? o.amount_due_now : balance) - pendingSum, 0) || Math.max(balance - pendingSum, 0) || balance;
-  const files = (() => { try { const f = JSON.parse(sessionStorage.getItem('kova.orderFiles') || 'null'); return f?.number === o.number ? f.files : []; } catch { return []; } })();
-  const waMsg = buildRegisteredOrderMessage(o, files);
+  const waMsg = buildRegisteredOrderMessage(o);
   const method = getPayments().find((p) => p.id === o.payment_method) ?? getPayments()[0];
   const payForm = () => `
           <p class="o-pay__amount"><span>Valor a transferir</span><b>${formatPrice(payNow)}</b></p>
@@ -111,6 +111,8 @@ function render(o) {
           ${o.tracking_number ? `<p class="o-note">Guía de envío: <b>${esc(o.tracking_number)}</b>${o.carrier ? ` (${esc(o.carrier)})` : ''}</p>` : ''}
         </section>
 
+        ${designsCard()}
+
         ${o.can_upload && balance > 0 && pending.length ? `
         <section class="o-card o-pay" id="pagar"><details class="o-more"><summary>¿Necesitas enviar otro comprobante?</summary>${payForm()}</details></section>`
         : o.can_upload && balance > 0 ? `
@@ -145,7 +147,7 @@ function render(o) {
           <li><span>${esc(PAYMENT_KIND[p.kind] ?? p.kind)} · ${formatPrice(p.amount)}</span>${pill(p.status, PAYMENT_STATUS)}${p.reject_reason ? `<small>${esc(p.reject_reason)}</small>` : ''}</li>`).join('')}</ul>` : ''}
         <a class="btn btn--primary btn--block" href="${whatsappUrl(waMsg)}" target="_blank" rel="noopener" data-wa>Escribir a KOVA por WhatsApp <span class="btn__arrow" aria-hidden="true">↗</span></a>
         ${balance > 0 && o.can_upload ? '<a class="btn btn--line btn--block" href="#pagar">Pagar / subir comprobante</a>' : ''}
-        ${files.length ? `<p class="o-files"><b>KOVA CUSTOM:</b> después de enviar el mensaje, adjunta en el mismo chat tus diseños originales (${files.map((f) => esc(f.label)).join(', ')}).</p>` : ''}
+        ${missingDesigns() ? '<a class="btn btn--line btn--block" href="#disenos">Subir mis diseños</a>' : ''}
         <p class="o-legal"><a href="condiciones.html" target="_blank" rel="noopener">Condiciones de compra, garantía y retracto</a></p>
       </aside>
     </div>`);
@@ -155,6 +157,130 @@ function render(o) {
   });
   main.querySelector('[data-wa]').addEventListener('click', () => copyText(waMsg));
   bindUpload(o);
+  bindDesigns();
+}
+
+/* =========================================================================
+ * Diseños de KOVA CUSTOM: se suben al bucket privado con el token del pedido
+ * ========================================================================= */
+const FACE = { front: 'Frente', back: 'Espalda' };
+const DESIGN_EXT = /\.(png|jpe?g|webp|pdf)$/i;
+const DESIGN_MIME = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+let designs = null;                 // respuesta de get_order_designs (null si el pedido no tiene KOVA CUSTOM)
+const progress = new Map();         // "línea:cara" → { pct } o { error }
+const fmtBytes = (b) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round((b || 0) / 1024))} KB`);
+const maxMb = () => Math.round((designs?.max_bytes ?? 26214400) / 1024 / 1024);
+
+function missingDesigns() {
+  if (!designs?.can_upload) return 0;
+  return designs.lines.reduce((n, l) => n + l.faces.filter((f) => !l.designs.some((d) => d.face === f)).length, 0);
+}
+
+function designRow(l, face) {
+  const key = `${l.line_no}:${face}`;
+  const d = l.designs.find((x) => x.face === face);
+  const p = progress.get(key);
+  const pick = (text, cls = 'btn btn--line btn--sm') => `<label class="${cls} o-dpick">${text}
+    <input type="file" accept="${DESIGN_MIME.join(',')},.png,.jpg,.jpeg,.webp,.pdf" data-dfile="${key}" class="sr-only"></label>`;
+  let body;
+  if (p && 'pct' in p) body = `<span class="o-dstate is-busy">Subiendo… ${Math.round(p.pct * 100)} %</span><progress max="100" value="${Math.round(p.pct * 100)}"></progress>`;
+  else if (d) body = `<span class="o-dstate is-ok">✓ Recibido: <b>${esc(d.file_name)}</b> <small>${esc(fmtBytes(d.size_bytes))}</small></span>${designs.can_upload ? pick('Cambiar', 'adm-link o-dpick') : ''}`;
+  else if (designs.can_upload) body = `<span class="o-dstate is-off">Pendiente</span>${pick('Subir archivo')}`;
+  else body = '<span class="o-dstate is-off">No recibido: escríbenos por WhatsApp</span>';
+  return `<div class="o-drow" data-drow="${key}"><span class="o-drow__face">${FACE[face]}</span>${body}
+    ${p?.error ? `<p class="field__error">${esc(p.error)}</p>` : ''}</div>`;
+}
+
+function designsCard() {
+  if (!designs?.lines?.length) return '';
+  const missing = missingDesigns();
+  return `
+        <section class="o-card o-designs" id="disenos" aria-labelledby="o-dis">
+          <h2 class="o-card__title" id="o-dis">Tus diseños · KOVA Custom</h2>
+          <p class="o-note">${designs.can_upload
+            ? (missing ? `Sube el archivo original de cada estampado (PNG, JPG, WEBP o PDF · máx. ${maxMb()} MB). Sin el diseño no podemos empezar la producción.`
+              : 'Recibimos todos tus diseños. Puedes cambiarlos hasta que empecemos a producir tu pedido.')
+            : 'Tu pedido ya está en producción: los diseños no se pueden cambiar desde aquí.'}</p>
+          ${designs.lines.map((l) => `
+          <div class="o-dline">
+            <p class="o-dline__name"><b>Producto ${l.line_no}</b> · ${esc(l.mode_label || l.name)}</p>
+            ${l.faces.map((f) => designRow(l, f)).join('')}
+          </div>`).join('')}
+          <p class="o-upload__hint">Tus archivos se guardan de forma privada: solo los ve el equipo de KOVA.</p>
+        </section>`;
+}
+
+function redrawRow(line, face) {
+  const l = designs.lines.find((x) => x.line_no === line);
+  const el = main.querySelector(`[data-drow="${line}:${face}"]`);
+  if (l && el) el.outerHTML = designRow(l, face);
+}
+
+function redrawDesigns() {
+  const card = main.querySelector('#disenos');
+  if (card) card.outerHTML = designsCard();
+}
+
+async function refreshDesigns() {
+  try { designs = await rpc('get_order_designs', { p_token: token }); } catch { /* se mantiene lo último */ }
+  redrawDesigns();
+}
+
+async function uploadDesign(line, face, file) {
+  const key = `${line}:${face}`;
+  if (progress.get(key)?.pct !== undefined) return false;
+  const fail = (msg) => { progress.set(key, { error: msg }); redrawRow(line, face); return false; };
+  if (!DESIGN_EXT.test(file.name) || (file.type && !DESIGN_MIME.includes(file.type))) return fail('Formato no admitido. Sube PNG, JPG, WEBP o PDF.');
+  if (file.size > (designs.max_bytes ?? 26214400)) return fail(`«${file.name}» pesa ${fmtBytes(file.size)}. El máximo es ${maxMb()} MB.`);
+  if (file.size < 100) return fail(`«${file.name}» está vacío o dañado.`);
+  progress.set(key, { pct: 0 }); redrawRow(line, face);
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const [slot, sha] = await Promise.all([
+      rpc('request_design_upload', { p_token: token, p_line: line, p_face: face, p_ext: ext }),
+      sha256Hex(file).catch(() => ''),
+    ]);
+    let last = 0;
+    await uploadToReservedPath(slot.bucket, slot.path, file, {
+      maxMb: maxMb(), kind: 'PNG, JPG, WEBP o PDF',
+      onProgress: (pct) => { if (pct - last >= 0.02 || pct === 1) { last = pct; progress.set(key, { pct }); redrawRow(line, face); } },
+    });
+    await rpc('submit_design_file', { p_token: token, p: { path: slot.path, file_name: file.name, sha256: sha } });
+    progress.delete(key);
+    const l = designs.lines.find((x) => x.line_no === line);
+    if (l?.ref) removeDesign(l.ref, face);
+    await refreshDesigns();
+    return true;
+  } catch (err) { return fail(errorText(err)); }
+}
+
+function bindDesigns() {
+  const card = main.querySelector('.o-grid');
+  if (!card || card.dataset.dbound) return;
+  card.dataset.dbound = '1';
+  card.addEventListener('change', async (e) => {
+    const input = e.target.closest('[data-dfile]');
+    if (!input?.files?.[0]) return;
+    const [line, face] = input.dataset.dfile.split(':');
+    if (await uploadDesign(Number(line), face, input.files[0])) toast('Diseño recibido. ¡Gracias!');
+  });
+}
+
+/** Sube solos los diseños que el cliente eligió en KOVA Custom y siguen guardados en este navegador. */
+async function autoUploadDesigns() {
+  if (!designs?.lines?.length) return;
+  let sent = 0;
+  for (const l of designs.lines) {
+    if (!l.ref) continue;
+    const local = await getDesigns(l.ref);
+    for (const face of Object.keys(local)) {
+      if (!l.faces.includes(face)) continue;
+      if (l.designs.some((d) => d.face === face)) { removeDesign(l.ref, face); continue; }
+      if (!designs.can_upload) continue;
+      if (await uploadDesign(l.line_no, face, local[face])) sent++;
+    }
+  }
+  if (sent) toast(sent > 1 ? 'Tus diseños llegaron a KOVA.' : 'Tu diseño llegó a KOVA.');
 }
 
 function bindUpload(o) {
@@ -194,7 +320,9 @@ async function load() {
   try {
     const o = await rpc('get_order_public', { p_token: token });
     rememberOrder({ number: o.number, token });
+    if (o.items.some((i) => i.custom)) designs = await rpc('get_order_designs', { p_token: token }).catch(() => designs);
     render(o);
+    autoUploadDesigns();
   } catch (err) {
     frame(`<div class="o-card o-error"><h1 class="o-card__title">No pudimos abrir el pedido<span class="dot">.</span></h1><p>${esc(errorText(err))}</p>
       <button class="btn btn--primary" type="button" data-reload>Reintentar</button>

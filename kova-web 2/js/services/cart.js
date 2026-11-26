@@ -8,8 +8,9 @@
  * - Los datos del comprador viven en sessionStorage: se borran al cerrar la pestaña.
  * - KOVA CUSTOM usa este mismo carrito: cada personalización es una línea propia
  *   { id: 'kova-custom', ref, mode, color, size, qty, files, place }. Su precio, color y talla se
- *   validan SIEMPRE contra la configuración vigente (services/custom.js). Los diseños no se guardan:
- *   solo el nombre del archivo (para recordar cuál enviar por WhatsApp) y una miniatura pequeña.
+ *   validan SIEMPRE contra la configuración vigente (services/custom.js). Aquí solo va el nombre del
+ *   archivo y una miniatura pequeña; el archivo original espera en IndexedDB (services/designStore.js)
+ *   hasta que la página del pedido lo sube al bucket privado de KOVA.
  */
 import { CONFIG } from '../config.js';
 import { getProductById, isAvailable, purchaseState } from './catalog.js';
@@ -17,6 +18,7 @@ import { getPayments } from './settings.js';
 import { CUSTOM_PRODUCT_ID } from '../data/custom.js';
 import { getMode, getColor, validateCustom, stockOf, priceOf, faceText, modeMeasures, modeZones, cmText } from './custom.js';
 import { teeDataUrl } from '../components/teeMockup.js';
+import { removeDesigns } from './designStore.js';
 
 const KEY = CONFIG.cart.storageKey;
 const BUYER_KEY = `${KEY}.buyer`;
@@ -233,7 +235,7 @@ export function addCustomItem({ mode, color, size, qty = 1, files = {}, place = 
   const next = Math.min(max, wanted);
   if (thumb && thumb.length < 120000) writeThumbs({ ...readThumbs(), [ref]: thumb });
   commit([...items, { ...line, qty: next }]);
-  return { ok: true, qty: next, capped: wanted > max, max };
+  return { ok: true, ref, qty: next, capped: wanted > max, max };
 }
 
 export function setQty(key, qty) {
@@ -248,7 +250,11 @@ export const changeQty = (key, delta) => {
   if (it) setQty(key, it.qty + delta);
 };
 
-export const removeItem = (key) => commit(items.filter((it) => lineKey(it) !== key));
+export function removeItem(key) {
+  // Si se quita una personalización, también se borran sus diseños guardados en este navegador.
+  items.filter((it) => lineKey(it) === key && isCustomLine(it)).forEach((it) => removeDesigns(it.ref));
+  commit(items.filter((it) => lineKey(it) !== key));
+}
 export const clearCart = () => commit([]);
 
 /* ---------- Datos del comprador (solo durante la sesión de la pestaña) ---------- */

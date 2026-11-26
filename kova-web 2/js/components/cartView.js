@@ -34,7 +34,7 @@ function lineHtml(l, cartMax) {
         <a class="cart-line__name" href="${lineHref(l)}">${esc(l.name)}</a>
         ${l.kind === 'preorder' ? `<span class="cart-line__pre"><span class="tag tag--pre">Preventa</span>${l.campaign?.dispatch ? ` Despacho estimado: ${esc(dateText(l.campaign.dispatch))}` : ''}</span>` : ''}
         ${variant ? `<span class="cart-line__variant">${esc(variant)}</span>` : ''}
-        ${l.custom ? `<span class="cart-line__custom">${l.zones.map((z) => `${z.face === 'front' ? 'Frente' : 'Espalda'}: ${esc(z.measures)}`).join(' · ')}<br>Diseño original: se envía por WhatsApp</span>` : ''}
+        ${l.custom ? `<span class="cart-line__custom">${l.zones.map((z) => `${z.face === 'front' ? 'Frente' : 'Espalda'}: ${esc(z.measures)}`).join(' · ')}<br>${l.zones.every((z) => l.files?.[z.face]) ? 'Diseño listo: se sube al registrar el pedido' : 'Diseño: lo subes al registrar el pedido'}</span>` : ''}
         <span class="cart-line__unit"><span class="cart-line__unitLabel">Precio unitario </span>${formatPrice(l.unitPrice)}</span>
       </div>
       <div class="qty" role="group" aria-label="Cantidad de ${esc(lineLabel(l))}">

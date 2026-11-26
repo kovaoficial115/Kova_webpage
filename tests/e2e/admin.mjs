@@ -2,6 +2,7 @@
  * Prueba del panel /admin en Chrome contra el simulador local (después de tienda.mjs, que deja un pedido con comprobante).
  */
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 const require = createRequire('/opt/node-tools/node_modules/');
 const { chromium } = require('playwright');
 
@@ -211,6 +212,21 @@ ok(/Envíos guardados/.test(await page.textContent('body')), 'configuración: gu
 await page.click('[data-form="profit"] .adm-card__foot button');
 await page.waitForTimeout(800);
 
+// Diseños de KOVA CUSTOM (pedido de tienda.mjs con frente y espalda subidos por el cliente)
+await page.goto(`${SITE}/admin/index.html#/pedidos`);
+await waitView(page, '.adm-orders');
+await page.click('a.adm-strong >> text=KOVA-WEB-000001');
+await waitView(page, '.adm-detail');
+t = await text(page);
+ok(/Diseños KOVA Custom/.test(t) && /e2e-diseno-frente\.png/.test(t) && /e2e-diseno-espalda\.png/.test(t), 'detalle: lista los diseños del cliente (frente y espalda)');
+const sizes = spawnSync('psql', ['-h', '/tmp', '-p', '5433', '-U', 'postgres', '-d', 'kova', '-tAc', "select string_agg(size_bytes::text, ',') from public.order_design_files where status = 'active'"], { encoding: 'utf8' }).stdout.trim();
+ok(sizes.split(',').every((n) => Number(n) > 1000), `detalle: los archivos guardados tienen su contenido real (${sizes} bytes)`);
+const [dpop] = await Promise.all([page.context().waitForEvent('page', { timeout: 5000 }).catch(() => null), page.click('[data-design]:not([data-dl]) >> nth=0')]);
+await dpop?.waitForURL(/custom-designs/, { timeout: 5000 }).catch(() => {});
+ok(dpop && /\/storage\/v1\/object\/sign\/custom-designs\//.test(dpop.url()), 'detalle: el diseño se abre con URL firmada temporal');
+await dpop?.close();
+await page.screenshot({ path: `${SHOTS}/15b-admin-disenos.png`, fullPage: true });
+
 // Móvil
 const m = await newPage({ width: 390, height: 844 });
 await login(m, 'owner@test');
@@ -227,6 +243,10 @@ await p2.goto(`${SITE}/admin/index.html#/pedidos`);
 await p2.waitForTimeout(1000);
 ok(/#\/produccion/.test(p2.url()), 'rol producción: no entra a Pedidos');
 ok(!/cliente@prueba|3001234567|Cliente Prueba/.test(await p2.textContent('[data-view]')), 'rol producción: no ve datos personales');
+spawnSync('psql', ['-h', '/tmp', '-p', '5433', '-U', 'postgres', '-d', 'kova', '-qc', "update public.orders set fulfillment_status = 'confirmed' where number = 'KOVA-WEB-000001'"]);
+await p2.reload();
+await p2.waitForSelector('[data-view] [data-design]', { timeout: 10000 });
+ok((await p2.$$('[data-view] [data-design]')).length === 2, 'rol producción: descarga los diseños del pedido confirmado');
 
 ok(page.errors.length === 0, `sin errores JS (owner) ${page.errors.join(' | ')}`);
 ok(m.errors.length === 0, `sin errores JS (móvil) ${m.errors.join(' | ')}`);

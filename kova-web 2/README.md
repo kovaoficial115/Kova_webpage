@@ -4,13 +4,15 @@
 Personalización de camisetas con el diseño del cliente: color → talla → estampado → precio → previsualización
 opcional → carrito → resumen → **Enviar pedido por WhatsApp**.
 
-- **Los diseños NO se suben a ningún servidor.** La imagen elegida solo se usa en el navegador para la
-  previsualización (mover, escalar con dedos/ratón/teclado, centrar, restablecer, aviso de resolución en ppp).
-  Al carrito pasa solo el nombre del archivo y una miniatura pequeña (localStorage). El cliente adjunta los
-  archivos originales en el chat de WhatsApp; el resumen le indica cuál es FRENTE y cuál ESPALDA.
+- **Diseños originales (nov 2026):** el cliente sube su archivo en el estudio (sirve también para la vista
+  previa). Mientras compra, el archivo queda en su navegador (IndexedDB, `js/services/designStore.js`); al registrar
+  el pedido, `pedido.html` lo sube al bucket **privado** `custom-designs` usando el enlace privado del pedido. Si falta
+  alguno (o es PDF), el cliente lo sube desde la página de su pedido hasta que empiece la producción.
+  PNG, JPG, WEBP o PDF · máx. 25 MB. En `/admin` se ven y descargan en el detalle del pedido y en Producción (URL
+  firmada de 10 min). Migración: `supabase/migrations/20261126_06_disenos_custom.sql`.
 - Un solo carrito: cada personalización es una línea `{ id: 'kova-custom', ref, mode, color, size, qty }`
   en `js/services/cart.js`. El mensaje del pedido (con número `KV-AAMMDD-XXXX`) se arma en `js/services/contact.js`.
-- El pedido nunca se marca como confirmado: KOVA lo verifica por WhatsApp (mensaje, archivos y pago manual).
+- El pedido nunca se marca como confirmado solo: KOVA verifica los diseños y el pago.
 - Reglas centralizadas en `js/services/custom.js`; valores iniciales en `js/data/custom.js`
   (precios oficiales: MINI $59.000 · FRONT $65.000 · BACK $69.000 · CLASSIC $72.000 · FULL $79.000).
 

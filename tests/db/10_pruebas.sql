@@ -258,4 +258,69 @@ select t.ok((public.admin_dashboard() -> 'kpis' ->> 'collected')::int = 64800 - 
 select t.ok((public.admin_promo_stats((select id from public.promo_codes where code_norm='KOVA10')) ->> 'confirmed_uses')::int = 1, 'estadísticas del código');
 select t.ok((public.admin_production(null) ->> 'confirmed_units')::int >= 0, 'panel de producción responde');
 reset role;
+
+-- ============ KOVA CUSTOM: diseños originales subidos desde la página ============
+select t.as_anon();
+do $$ declare r jsonb; begin
+  r := public.create_order(t.order_payload(jsonb_build_array(
+         jsonb_build_object('custom', jsonb_build_object('mode','classic','color','negro','size','M','ref','refdisenio1'), 'qty', 1),
+         jsonb_build_object('custom', jsonb_build_object('mode','mini','color','blanco','size','L','ref','refdisenio2'), 'qty', 1)),
+       'k-dddddddddddddddd1', '', 'full', 'dis@test.co'));
+  perform set_config('t.dtok', r ->> 'token', false);
+end $$;
+select t.ok(jsonb_array_length(public.get_order_designs(current_setting('t.dtok')) -> 'lines') = 2, 'diseños: el pedido lista sus 2 líneas KOVA CUSTOM');
+select t.ok((public.get_order_designs(current_setting('t.dtok')) #> '{lines,0,faces}') = '["front","back"]'::jsonb, 'diseños: CLASSIC lleva frente y espalda');
+select t.ok((public.get_order_designs(current_setting('t.dtok')) #> '{lines,1,faces}') = '["front"]'::jsonb, 'diseños: MINI solo lleva frente');
+select t.fails($$select public.get_order_designs(repeat('b', 64))$$, 'No encontramos', 'diseños: sin el token correcto no se ve nada');
+select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 2, 'back', 'png')$$, 'no lleva estampado', 'diseños: no se sube a una cara que no se estampa');
+select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 1, 'front', 'svg')$$, 'PNG, JPG, WEBP o PDF', 'diseños: SVG y otros tipos rechazados');
+select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 9, 'front', 'png')$$, 'no es de KOVA CUSTOM', 'diseños: línea inexistente rechazada');
+do $$ declare up jsonb; begin
+  up := public.request_design_upload(current_setting('t.dtok'), 1, 'front', 'PNG');
+  perform t.ok(up ->> 'bucket' = 'custom-designs' and (up ->> 'path') like '%/1-front-%.png', 'diseños: ruta reservada en el bucket privado');
+  perform set_config('t.dpath1', up ->> 'path', false);
+end $$;
+select t.fails($$insert into storage.objects (bucket_id, name) values ('custom-designs', 'otro/archivo.png')$$, 'row-level security', 'diseños: no se puede subir fuera del cupo reservado');
+select t.fails($$select public.submit_design_file(current_setting('t.dtok'), jsonb_build_object('path', current_setting('t.dpath1'), 'file_name', 'logo.png'))$$,
+  'no terminó de subir', 'diseños: no se registra un archivo que no se subió');
+insert into storage.objects (bucket_id, name, metadata) values ('custom-designs', current_setting('t.dpath1'), '{"size": 2048, "mimetype": "image/png"}');
+select t.ok((select count(*) from storage.objects where bucket_id = 'custom-designs') = 0, 'diseños: anon no puede ver ni listar los archivos');
+select t.fails($$select * from public.order_design_files$$, 'permission denied', 'diseños: anon no lee la tabla de diseños');
+select public.submit_design_file(current_setting('t.dtok'), jsonb_build_object('path', current_setting('t.dpath1'), 'file_name', '../mi logo.png', 'sha256', repeat('ef', 32)));
+select t.fails($$select public.submit_design_file(current_setting('t.dtok'), jsonb_build_object('path', current_setting('t.dpath1'), 'file_name', 'x.png'))$$,
+  'Súbelo de nuevo', 'diseños: un cupo solo sirve una vez');
+select t.fails($$insert into storage.objects (bucket_id, name) values ('custom-designs', current_setting('t.dpath1') || 'x')$$, 'row-level security', 'diseños: cupo usado ya no admite más archivos');
+select t.ok((public.get_order_designs(current_setting('t.dtok')) #>> '{lines,0,designs,0,file_name}') = '.._mi logo.png', 'diseños: el cliente ve su diseño recibido (nombre saneado)');
+do $$ declare up jsonb; begin   -- archivo vacío
+  up := public.request_design_upload(current_setting('t.dtok'), 1, 'back', 'png');
+  insert into storage.objects (bucket_id, name, metadata) values ('custom-designs', up ->> 'path', '{"size": 0, "mimetype": "image/png"}');
+  perform set_config('t.dpath0', up ->> 'path', false);
+end $$;
+select t.fails($$select public.submit_design_file(current_setting('t.dtok'), jsonb_build_object('path', current_setting('t.dpath0'), 'file_name', 'vacio.png'))$$,
+  'vacío', 'diseños: un archivo vacío no se registra');
+do $$ declare up jsonb; begin   -- reemplazo
+  up := public.request_design_upload(current_setting('t.dtok'), 1, 'front', 'pdf');
+  insert into storage.objects (bucket_id, name, metadata) values ('custom-designs', up ->> 'path', '{"size": 4096, "mimetype": "application/pdf"}');
+  perform public.submit_design_file(current_setting('t.dtok'), jsonb_build_object('path', up ->> 'path', 'file_name', 'logo-final.pdf'));
+end $$;
+reset role;
+select t.ok((select count(*) filter (where status = 'active') = 1 and count(*) = 2 from public.order_design_files where order_id = t.oid((select number from public.orders where idempotency_key = 'k-dddddddddddddddd1')) and line_no = 1 and face = 'front'),
+  'diseños: reemplazar deja un solo archivo vigente y guarda el anterior');
+select t.ok((select size_bytes = 4096 and mime = 'application/pdf' from public.order_design_files where file_name = 'logo-final.pdf'), 'diseños: se guarda tamaño y tipo reales del archivo');
+select t.ok(exists (select 1 from public.order_history where event = 'Diseño recibido' and is_public), 'diseños: queda en el historial del pedido');
+-- Personal del panel: admin y producción ven los diseños; un usuario cualquiera no.
+set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000a1');
+select t.ok((select count(*) from public.order_design_files) = 2, 'diseños: admin los ve');
+select t.ok((select count(*) from storage.objects where bucket_id = 'custom-designs') = 3, 'diseños: admin puede abrir los archivos (URL firmada)');
+select t.as_user('00000000-0000-0000-0000-0000000000b2');
+select t.ok((select count(*) from public.order_design_files) = 2, 'diseños: producción los ve para estampar');
+select t.as_user('00000000-0000-0000-0000-0000000000d4');
+select t.ok((select count(*) from public.order_design_files) = 0, 'diseños: un usuario que no es del equipo no ve nada');
+select t.ok((select count(*) from storage.objects where bucket_id = 'custom-designs') = 0, 'diseños: un usuario que no es del equipo no abre archivos');
+reset role;
+update public.orders set fulfillment_status = 'in_production' where idempotency_key = 'k-dddddddddddddddd1';
+select t.as_anon();
+select t.fails($$select public.request_design_upload(current_setting('t.dtok'), 1, 'back', 'png')$$, 'en producción', 'diseños: en producción ya no se cambian desde la página');
+select t.ok((public.get_order_designs(current_setting('t.dtok')) ->> 'can_upload')::boolean = false, 'diseños: la página sabe que ya no se pueden cambiar');
+reset role;
 select 'TODAS LAS PRUEBAS PASARON' as resultado;

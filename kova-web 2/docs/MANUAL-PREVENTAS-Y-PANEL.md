@@ -15,6 +15,8 @@ Migraciones en `supabase/migrations/`, en orden:
 2. `20261125_02_funciones_tienda.sql`: funciones públicas de la tienda.
 3. `20261125_03_funciones_panel.sql`: funciones del panel (todas verifican el rol dentro de la función).
 4. `20261125_04_endurecimiento.sql`: ajustes del asesor de seguridad de Supabase.
+5. `20261125_05_permisos_anon.sql`: defensa en profundidad sobre permisos.
+6. `20261126_06_disenos_custom.sql`: diseños de KOVA Custom (bucket privado `custom-designs`, tabla `order_design_files`, funciones `get_order_designs`, `request_design_upload`, `submit_design_file`).
 
 Estado en producción (25 nov 2026): las 4 aplicadas, 22 tablas con RLS, productos intactos, 0 pedidos, 0 códigos, y la preventa PSYCHE_01 en **borrador, sin fechas**.
 

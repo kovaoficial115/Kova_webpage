@@ -167,6 +167,67 @@ await page2.goto(`${SITE}/condiciones.html`);
 await page2.waitForTimeout(800);
 ok(/Ley 1480/.test(await page2.textContent('main')), 'condiciones: textos legales visibles');
 
+// 8. KOVA CUSTOM: el diseño elegido en la página se sube solo al registrar el pedido (bucket privado)
+const zlib = await import('node:zlib');
+function pngFile(file, w = 240, h = 240) {
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(td)); return Buffer.concat([len, td, crc]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const raw = Buffer.alloc((w * 3 + 1) * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * (w * 3 + 1) + 1 + x * 3; raw[i] = (x * 7) & 255; raw[i + 1] = 22; raw[i + 2] = (y * 5) & 255; }
+  fs.writeFileSync(file, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+  return file;
+}
+const front = pngFile('/tmp/e2e-diseno-frente.png');
+const back = pngFile('/tmp/e2e-diseno-espalda.png', 300, 400);
+const pc = await newPage({ width: 390, height: 844 });
+await pc.goto(`${SITE}/custom.html`);
+await pc.waitForSelector('[data-panel]', { timeout: 10000 });
+ok(!/se envía por WhatsApp/.test(await pc.textContent('main')), 'KOVA Custom: ya no pide enviar el diseño por WhatsApp');
+await pc.click('.cx-mode:has(input[value="classic"])');
+await pc.click('[data-sizes] .size >> text=M');
+const [chooser] = await Promise.all([pc.waitForEvent('filechooser'), pc.click('[data-slot] [data-pick] >> nth=0')]);
+await chooser.setFiles(front);
+await pc.waitForSelector('.cx-slot.has-file', { timeout: 8000 });
+ok(true, 'KOVA Custom: el diseño del frente se previsualiza');
+await pc.click('[data-add]');
+await pc.waitForSelector('[data-added]:not([hidden])', { timeout: 8000 });
+ok(/se sube de forma privada/.test(await pc.textContent('[data-added]')), 'KOVA Custom: avisa que el diseño se sube con el pedido');
+await pc.goto(`${SITE}/checkout.html`);
+await pc.waitForSelector('.co-sum', { timeout: 10000 });
+await pc.fill('#co-name', 'Diseño Prueba');
+await pc.fill('#co-phone', '3009998877');
+await pc.fill('#co-email', 'disenio@prueba.co');
+await pc.fill('#co-department', 'Valle del Cauca');
+await pc.fill('#co-city', 'Cali');
+if (await (await pc.$('#co-address')).isVisible()) await pc.fill('#co-address', 'Calle 1 # 2-3');
+await pc.click('.co-option:has([name="payment"]) >> nth=0');
+await pc.check('[name="accept_terms"]', { force: true });
+await pc.check('[name="accept_data"]', { force: true });
+await pc.waitForTimeout(800);
+await pc.click('[data-submit]');
+await pc.waitForURL(/pedido\.html\?nuevo=1#[0-9a-f]{64}/, { timeout: 15000 });
+await pc.waitForSelector('#disenos', { timeout: 10000 });
+await pc.waitForFunction(() => /Recibido: .*e2e-diseno-frente\.png/.test(document.querySelector('#disenos')?.textContent ?? ''), null, { timeout: 15000 });
+ok(true, 'pedido: el diseño del frente se subió solo al registrar el pedido');
+ok(/Pendiente/.test(await pc.textContent('#disenos')), 'pedido: la espalda aparece pendiente');
+// El archivo se crea en memoria: la intercepción de Playwright no copia cuerpos de archivos leídos del disco.
+await pc.evaluate((b64) => {
+  const input = document.querySelector('[data-dfile="1:back"]');
+  const dt = new DataTransfer();
+  dt.items.add(new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'e2e-diseno-espalda.png', { type: 'image/png' }));
+  input.files = dt.files;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}, fs.readFileSync(back).toString('base64'));
+await pc.waitForFunction(() => /Recibimos todos tus diseños/.test(document.querySelector('#disenos')?.textContent ?? ''), null, { timeout: 15000 });
+ok(true, 'pedido: el cliente sube la espalda desde su enlace');
+const bad = '/tmp/e2e-diseno.svg'; fs.writeFileSync(bad, '<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+await pc.setInputFiles('[data-dfile="1:back"]', bad);
+await pc.waitForSelector('#disenos .field__error', { timeout: 5000 });
+ok(/Formato no admitido/.test(await pc.textContent('#disenos')), 'pedido: rechaza formatos no admitidos (SVG)');
+await pc.screenshot({ path: `${SHOTS}/07-pedido-disenos.png`, fullPage: true });
+const leftover = await pc.evaluate(() => new Promise((r) => { const q = indexedDB.open('kova-designs'); q.onsuccess = () => { const g = q.result.transaction('files').objectStore('files').count(); g.onsuccess = () => r(g.result); }; q.onerror = () => r(-1); }));
+ok(leftover === 0, 'pedido: el diseño ya subido se borra del navegador');
+ok(pc.errors.length === 0, `sin errores de JavaScript en KOVA Custom ${pc.errors.join(' | ')}`);
+
 ok(page.errors.length === 0, `sin errores de JavaScript en móvil ${page.errors.join(' | ')}`);
 ok(page2.errors.length === 0, `sin errores de JavaScript en escritorio ${page2.errors.join(' | ')}`);
 await browser.close();

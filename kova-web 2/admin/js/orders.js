@@ -174,21 +174,74 @@ export async function renderOrder(view, id) {
   if (!isAdminRole()) { view.innerHTML = '<div class="adm-wrap"><div class="adm-alert">Solo administradores.</div></div>'; return; }
   loading(view, 'Cargando pedido');
   try {
-    const [{ data: o }, { data: items }, { data: pays }, { data: hist }] = await Promise.all([
+    const [{ data: o }, { data: items }, { data: pays }, { data: hist }, { data: designs }] = await Promise.all([
       run(db().from('orders').select('*').eq('id', id).single()),
       run(db().from('order_items').select('*').eq('order_id', id).order('line_no')),
       run(db().from('payments').select('*').eq('order_id', id).order('created_at')),
       run(db().from('order_history').select('*').eq('order_id', id).order('at', { ascending: false })),
+      run(db().from('order_design_files').select('*').eq('order_id', id).order('created_at', { ascending: false })).catch(() => ({ data: [] })),
     ]);
     let campaign = null;
     if (o.campaign_id) campaign = (await run(db().from('preorder_campaigns').select('id,name,est_dispatch_date').eq('id', o.campaign_id).maybeSingle())).data;
-    drawOrder(view, o, items, pays, hist, campaign);
+    drawOrder(view, o, items, pays, hist, campaign, designs ?? []);
   } catch (err) { errorBox(view, err, () => renderOrder(view, id)); }
+}
+
+/* ---------- Diseños de KOVA CUSTOM (bucket privado custom-designs) ---------- */
+const FACE = { front: 'Frente', back: 'Espalda' };
+const kb = (n) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round((n || 0) / 1024))} KB`);
+const designFaces = (i) => {
+  const m = i.custom?.mode;
+  return m === 'mini' || m === 'front' ? ['front'] : m === 'back' ? ['back'] : ['front', 'back'];
+};
+
+function designButtons(d) {
+  return `<button class="btn btn--line btn--sm" type="button" data-design="${esc(d.path)}">Ver</button>
+    <button class="btn btn--line btn--sm" type="button" data-design="${esc(d.path)}" data-dl="${esc(d.file_name)}">Descargar</button>`;
+}
+
+/** Tabla de diseños por producto y cara; vacía si el pedido no tiene KOVA CUSTOM. */
+export function designsSection(items, designs) {
+  const custom = items.filter((i) => i.custom);
+  if (!custom.length) return '';
+  const rows = custom.flatMap((i) => {
+    const faces = [...new Set([...designFaces(i), ...designs.filter((d) => d.line_no === i.line_no).map((d) => d.face)])];
+    return faces.map((face) => {
+      const all = designs.filter((d) => d.line_no === i.line_no && d.face === face);
+      const cur = all.find((d) => d.status === 'active');
+      const old = all.filter((d) => d.status !== 'active');
+      return `<tr><td>Producto ${i.line_no}<small>${esc(i.custom.mode_label ?? i.name)}</small></td><td>${FACE[face]}</td>
+        <td>${cur ? `<b>${esc(cur.file_name)}</b><small>${esc([cur.mime?.split('/').pop()?.toUpperCase(), cur.size_bytes && kb(cur.size_bytes), dt(cur.created_at)].filter(Boolean).join(' · '))}</small>` : '<span class="adm-bad">Pendiente</span>'}
+          ${old.length ? `<details><summary class="adm-muted">${old.length} versión(es) anterior(es)</summary>${old.map((d) => `<div>${esc(d.file_name)} <small>${esc(dt(d.created_at))}</small> ${designButtons(d)}</div>`).join('')}</details>` : ''}</td>
+        <td class="num">${cur ? designButtons(cur) : ''}</td></tr>`;
+    });
+  });
+  const missing = rows.filter((r) => r.includes('adm-bad')).length;
+  return `<section class="adm-card"><h2 class="adm-card__title">Diseños KOVA Custom</h2>
+    ${missing ? `<div class="adm-alert">${missing} diseño(s) pendiente(s). El cliente puede subirlos desde su enlace de seguimiento.</div>` : ''}
+    <table class="adm-table"><thead><tr><th>Producto</th><th>Cara</th><th>Archivo</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>
+    <p class="adm-muted">Archivos privados: cada enlace dura 10 minutos.</p></section>`;
+}
+
+/** Abre o descarga un diseño con una URL firmada temporal. */
+export function bindDesignFiles(view) {
+  view.querySelectorAll('[data-design]').forEach((b) => b.addEventListener('click', async () => {
+    const dl = b.dataset.dl;
+    const win = dl ? null : window.open('about:blank', '_blank');
+    if (win) win.opener = null;
+    const done = setBusy(b, dl ? 'Preparando…' : 'Abriendo…');
+    try {
+      const { data, error } = await db().storage.from('custom-designs').createSignedUrl(b.dataset.design, 600, dl ? { download: dl } : undefined);
+      if (error) throw error;
+      if (dl) location.assign(data.signedUrl);
+      else if (win) win.location.href = data.signedUrl; else location.assign(data.signedUrl);
+    } catch (err) { win?.close(); toast(errText(err)); } finally { done(); }
+  }));
 }
 
 const CHECK = [['cut', 'Corte'], ['print', 'Estampado / bordado'], ['sewing', 'Confección'], ['qc', 'Control de calidad'], ['label', 'Etiquetado'], ['pack', 'Empaque'], ['guide', 'Guía generada']];
 
-function drawOrder(view, o, items, pays, hist, campaign) {
+function drawOrder(view, o, items, pays, hist, campaign, designs = []) {
   const net = o.paid_total - o.refunded_total;
   const balance = Math.max(o.total - net, 0);
   const next = o.fulfillment_status === 'pending_confirmation' ? ['confirmed'] : (FULFILLMENT_NEXT[o.fulfillment_status] ?? []);
@@ -232,6 +285,8 @@ function drawOrder(view, o, items, pays, hist, campaign) {
             <tr class="adm-strong"><td colspan="5">Total</td><td class="num">${money(o.total)}</td></tr>
           </tfoot></table>
         </section>
+
+        ${designsSection(items, designs)}
 
         <section class="adm-card"><div class="adm-card__head"><h2 class="adm-card__title">Pagos</h2>
           ${!closed ? `<div><button class="btn btn--line btn--sm" type="button" data-addpay>Registrar pago</button>
@@ -320,6 +375,8 @@ function bindOrder(view, o, balance, net) {
       if (win) win.location.href = data.signedUrl; else location.assign(data.signedUrl);
     } catch (err) { win?.close(); toast(errText(err)); } finally { done(); }
   }));
+
+  bindDesignFiles(view);
 
   view.querySelectorAll('[data-review]').forEach((b) => b.addEventListener('click', async () => {
     const action = b.dataset.review;
