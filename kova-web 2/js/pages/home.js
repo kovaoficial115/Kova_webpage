@@ -126,7 +126,7 @@ function renderCustom() {
           <h2 class="custom-band__title" id="custom-band-title">Your design.<br>Your identity<span class="dot">.</span></h2>
         </div>
         <div class="custom-band__copy">
-          <p>Estampamos tu propio diseño en una camiseta KOVA: pecho pequeño, pecho grande, espalda o combinados. Previsualízalo en la web y envíanos el archivo original por WhatsApp.</p>
+          <p>Estampamos tu propio diseño en una camiseta KOVA: pecho pequeño, pecho grande, espalda o combinados. Previsualízalo en la web y sube ahí mismo tu archivo original.</p>
           <a class="btn btn--primary btn--xl" href="custom.html">Personalizar mi camiseta <i class="ico ico--destellos" aria-hidden="true"></i></a>
         </div>
       </div>

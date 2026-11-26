@@ -16,14 +16,12 @@ import { rpc, errorText, randomKey } from '../services/api.js';
 import { getPromo, onPromo, removePromo } from '../services/promo.js';
 import { promoFieldHtml, bindPromo } from '../components/promoField.js';
 import { paymentDetailHtml, dateText } from '../components/cartView.js';
-import { attachmentsFor } from '../services/contact.js';
 import { formatPrice } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
 import { rememberOrder } from '../services/orders.js';
 
 const main = document.querySelector('main');
 const KEY_STORE = `${CONFIG.cart.storageKey}.checkoutKey`;
-const FILES_STORE = 'kova.orderFiles';
 
 const field = (name, label, { type = 'text', auto = '', mode = '', max = 80, ph = '', hint = '', req = true } = {}) => `
   <div class="field" data-field="${name}">
@@ -337,7 +335,6 @@ async function submit(form) {
   label.textContent = 'Registrando…';
   setState('Registrando tu pedido de forma segura…');
   const b = getBuyer();
-  const cart = getCart();
   const payload = {
     idempotency_key: checkoutKey(),
     items: serverItems(),
@@ -368,8 +365,7 @@ async function submit(form) {
     if (lastErr?.friendly) queueQuote(0);
     return;
   }
-  // Archivos de KOVA CUSTOM por adjuntar en WhatsApp (solo nombres; los diseños nunca se suben).
-  try { sessionStorage.setItem(FILES_STORE, JSON.stringify({ number: res.number, files: attachmentsFor(cart) })); } catch { /* sin almacenamiento */ }
+  // Los diseños de KOVA CUSTOM (guardados en este navegador) los sube la página del pedido con el token.
   rememberOrder({ number: res.number, token: res.token });
   clearCart();
   removePromo();

@@ -191,7 +191,7 @@ const server = http.createServer(async (req, res) => {
       const [, bucket, p] = m; const name = decodeURIComponent(p);
       const limit = Number(sql(`select coalesce(file_size_limit, 0) from storage.buckets where id = ${q(bucket)}`, { role: 'anon' }) || 0);
       if (limit && raw.length > limit) return send(res, 400, { statusCode: '413', error: 'Payload too large', message: 'The object exceeded the maximum allowed size' });
-      try { sql(`insert into storage.objects (bucket_id, name, metadata) values (${q(bucket)}, ${q(name)}, ${q(JSON.stringify({ size: raw.length }))}::jsonb)`, { ...who, headers }); } catch (err) {
+      try { sql(`insert into storage.objects (bucket_id, name, metadata) values (${q(bucket)}, ${q(name)}, ${q(JSON.stringify({ size: raw.length, mimetype: req.headers['content-type'] || null }))}::jsonb)`, { ...who, headers }); } catch (err) {
         return send(res, 400, { statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' });
       }
       const file = path.join(FILES, bucket, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, raw);

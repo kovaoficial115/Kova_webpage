@@ -2,11 +2,12 @@
  * KOVA CUSTOM — YOUR DESIGN. YOUR IDENTITY. (custom.html)
  *
  * Flujo: color → talla → estampado → precio → (opcional) previsualizar el diseño → carrito.
- * Al finalizar el pedido, el resumen se envía por WhatsApp y el cliente adjunta ahí sus archivos.
+ * El diseño que el cliente elige sirve para previsualizar y es el archivo original del pedido.
  *
- * Privacidad y arquitectura: las imágenes que el cliente elige NUNCA salen del navegador. Se leen
- * con URL.createObjectURL solo para la previsualización; al carrito pasa únicamente el nombre del
- * archivo (para recordarle cuál enviar) y una miniatura pequeña guardada en este navegador.
+ * Privacidad y arquitectura: mientras el cliente compra, el archivo se queda en su navegador
+ * (URL.createObjectURL para la vista previa e IndexedDB para guardarlo, services/designStore.js).
+ * Solo cuando el pedido queda registrado, la página del pedido lo sube al bucket PRIVADO de KOVA
+ * usando el enlace privado del pedido. Al carrito pasa el nombre del archivo y una miniatura.
  *
  * Toda regla (precios, medidas, colores, tallas, inventario) viene de services/custom.js.
  */
@@ -19,6 +20,7 @@ import {
   stockOf, isComboAvailable, colorHasStock, priceOf, zoneRect, uploadRules,
 } from '../services/custom.js';
 import { addCustomItem } from '../services/cart.js';
+import { saveDesigns, pruneOldDesigns } from '../services/designStore.js';
 import { esc, toast } from '../utils/dom.js';
 import { formatPrice, pad } from '../utils/format.js';
 
@@ -57,7 +59,7 @@ function hero() {
         <p class="eyebrow">Nuevo · Personalización</p>
         <h1 class="cx-hero__title">KOVA<br>Custom<span class="dot">.</span></h1>
         <p class="cx-hero__claim">Your design. <span>Your identity.</span></p>
-        <p class="cx-hero__lead">Tú traes el diseño, nosotros lo estampamos en una camiseta KOVA. Elige color, talla y estampado, mira cómo queda y envíanos tu archivo original por WhatsApp.</p>
+        <p class="cx-hero__lead">Tú traes el diseño, nosotros lo estampamos en una camiseta KOVA. Elige color, talla y estampado, mira cómo queda y sube aquí tu archivo original.</p>
         <div class="cx-hero__meta">
           ${from !== null ? `<span class="tag">Desde ${formatPrice(from)}</span>` : ''}
           <span class="cx-hero__note"><i class="ico ico--orbita" aria-hidden="true"></i> Camiseta + estampado incluidos · sin costo por colores</span>
@@ -90,7 +92,7 @@ function studio() {
             <button type="button" data-face="back">Espalda</button>
           </div>
           <div class="cx-tools" data-tools hidden></div>
-          <p class="cx-stage__hint"><i class="ico ico--destellos" aria-hidden="true"></i> Previsualización aproximada. Tu imagen no sale de este dispositivo.</p>
+          <p class="cx-stage__hint"><i class="ico ico--destellos" aria-hidden="true"></i> Previsualización aproximada. Tu diseño solo lo ve el equipo de KOVA.</p>
         </div>
 
         <form class="cx-panel" data-panel novalidate>
@@ -110,10 +112,10 @@ function studio() {
           </fieldset>
 
           <div class="cx-step" data-step="design">
-            <p class="cx-step__head"><span class="cx-step__num">04</span> Tu diseño <span class="cx-step__value">Opcional · solo para previsualizar</span></p>
+            <p class="cx-step__head"><span class="cx-step__num">04</span> Tu diseño <span class="cx-step__value">Archivo original para estampar</span></p>
             <div class="cx-slots" data-slots></div>
             <p class="cx-wa"><i class="ico ico--orbita" aria-hidden="true"></i>
-              <span><b>El archivo original se envía por WhatsApp.</b> Al finalizar el pedido se abre el chat de KOVA con tu resumen y ahí adjuntas tus diseños (PNG con fondo transparente es lo ideal). Sin ese archivo no podemos iniciar la producción.</span></p>
+              <span><b>Tu diseño se guarda con tu pedido.</b> Sube aquí el archivo original (PNG con fondo transparente es lo ideal): se envía de forma privada al registrar el pedido y solo lo ve el equipo de KOVA. ¿Lo tienes en PDF o lo subes después? Puedes hacerlo desde la página de tu pedido.</span></p>
             <input type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden data-file>
           </div>
 
@@ -144,15 +146,15 @@ function studio() {
 function how() {
   const modes = getModes();
   const steps = [
-    ['Personaliza', 'Elige color, talla y tipo de estampado. Si quieres, sube tu imagen para ver cómo queda: se queda en tu dispositivo.', 'destellos'],
+    ['Personaliza', 'Elige color, talla y tipo de estampado, y sube tu diseño para ver cómo queda en la camiseta.', 'destellos'],
     ['Agrega y finaliza', 'Agrégala al carrito (puedes combinarla con camisetas del catálogo), completa tus datos y elige cómo pagar.', 'orbita'],
-    ['Envía por WhatsApp', 'Pulsa «Enviar pedido por WhatsApp»: se abre el chat de KOVA con tu resumen. Ahí adjuntas el archivo del frente y/o de la espalda.', 'conector-2'],
+    ['Tu diseño llega a KOVA', 'Al registrar el pedido, tus archivos del frente y/o la espalda se suben de forma privada. Si te falta alguno, lo subes desde la página de tu pedido.', 'conector-2'],
     ['Producción', 'Revisamos tu mensaje y tus archivos, confirmamos el pago manualmente y empezamos a estampar.', 'globo'],
   ];
   return `
     <section class="section s-arena cx-how" id="como-funciona">
       <div class="container">
-        ${chapter({ num: 'KC', title: 'Cómo funciona', note: 'Tus diseños originales se envían por WhatsApp', folio: `${pad(steps.length, 2)} pasos` })}
+        ${chapter({ num: 'KC', title: 'Cómo funciona', note: 'Tus diseños se suben aquí mismo, de forma privada', folio: `${pad(steps.length, 2)} pasos` })}
         <ol class="cx-flow">
           ${steps.map(([t, d, ico], i) => `
             <li class="cx-flow__item reveal" style="--i:${i}">
@@ -282,7 +284,7 @@ function initStudio() {
             </div>` : `
             <button type="button" class="cx-drop" data-pick="${esc(z.id)}">
               <i class="ico ico--destellos" aria-hidden="true"></i>
-              <span><b>Subir imagen para previsualizar</b><small>PNG, JPG o WEBP · máx. ${uploadRules().maxMb} MB · puedes arrastrarla aquí</small></span>
+              <span><b>Subir mi diseño</b><small>PNG, JPG o WEBP · máx. ${uploadRules().maxMb} MB · puedes arrastrarlo aquí</small></span>
             </button>`}
         </div>`;
     }).join('');
@@ -378,8 +380,8 @@ function initStudio() {
     const cm = printedCm(z, d);
     const dpi = Math.round(Math.min(d.w / (cm.w / 2.54), d.h / (cm.h / 2.54)));
     const r = uploadRules();
-    if (dpi < r.minDpi) return { level: 'bad', dpi, text: `Resolución baja (${dpi} ppp a este tamaño): podría verse pixelado. Envía por WhatsApp un archivo más grande o reduce el tamaño.` };
-    if (dpi < r.goodDpi) return { level: 'warn', dpi, text: `Resolución justa (${dpi} ppp): podría perder nitidez al imprimirse. Si tienes una versión más grande, envía esa.` };
+    if (dpi < r.minDpi) return { level: 'bad', dpi, text: `Resolución baja (${dpi} ppp a este tamaño): podría verse pixelado. Sube un archivo más grande o reduce el tamaño.` };
+    if (dpi < r.goodDpi) return { level: 'warn', dpi, text: `Resolución justa (${dpi} ppp): podría perder nitidez al imprimirse. Si tienes una versión más grande, sube esa.` };
     return { level: 'ok', dpi, text: `Buena resolución para este tamaño (${dpi} ppp). KOVA revisará el archivo original antes de estampar.` };
   }
 
@@ -430,7 +432,7 @@ function initStudio() {
     if (missing.length) { st.textContent = `Falta elegir: ${missing.join(' y ')}.`; st.className = 'checkout-state status status--off'; }
     else {
       const designs = modeZones(m).filter((z) => state.designs[z.id]).length;
-      st.textContent = designs ? 'Listo para agregar al carrito.' : 'Listo. Puedes agregarlo sin previsualizar: el diseño lo envías por WhatsApp.';
+      st.textContent = designs ? 'Listo para agregar al carrito.' : 'Listo. Si aún no tienes el diseño, lo subes después desde la página de tu pedido.';
       st.className = 'checkout-state status status--on';
     }
   }
@@ -457,7 +459,7 @@ function initStudio() {
     const rules = uploadRules();
     const typeOk = TYPES[file.type] || (!file.type && EXT.test(file.name));
     if (!typeOk || !EXT.test(file.name)) return toast(`«${file.name}» no es un formato admitido. Usa PNG, JPG o WEBP.`);
-    if (file.size > rules.maxMb * 1024 * 1024) return toast(`«${file.name}» pesa ${fmtBytes(file.size)}. El máximo para previsualizar es ${rules.maxMb} MB (por WhatsApp puedes enviar el original completo).`);
+    if (file.size > rules.maxMb * 1024 * 1024) return toast(`«${file.name}» pesa ${fmtBytes(file.size)}. El máximo es ${rules.maxMb} MB: exporta una versión más liviana (PNG o JPG).`);
     if (file.size < 100) return toast(`«${file.name}» está vacío o dañado.`);
     const url = URL.createObjectURL(file);
     let w; let h;
@@ -475,7 +477,7 @@ function initStudio() {
     if (Math.min(w, h) < 100) { URL.revokeObjectURL(url); return toast(`«${file.name}» es demasiado pequeña (${w} × ${h} px). Usa una imagen de al menos 100 px por lado.`); }
     const prev = state.designs[zoneId];
     if (prev) URL.revokeObjectURL(prev.url);
-    state.designs[zoneId] = { name: file.name, size: file.size, type: file.type || 'image/png', url, w, h, scale: 1, ox: 0, oy: 0 };
+    state.designs[zoneId] = { file, name: file.name, size: file.size, type: file.type || 'image/png', url, w, h, scale: 1, ox: 0, oy: 0 };
     state.active = zoneId;
     state.face = z.face;
     renderSlots();
@@ -659,11 +661,12 @@ function initStudio() {
       return;
     }
     const m = mode();
-    const files = {}; const place = {};
+    const files = {}; const place = {}; const originals = {};
     modeZones(m).forEach((z) => {
       const d = state.designs[z.id];
       if (!d) return;
       files[z.face] = d.name;
+      originals[z.face] = d.file;
       place[z.face] = printedCm(z, d);
     });
     const btn = $('[data-add]');
@@ -672,11 +675,14 @@ function initStudio() {
     btn.removeAttribute('aria-busy');
     const res = addCustomItem({ mode: m.id, color: state.color, size: state.size, qty: state.qty, files, place, thumb });
     if (!res.ok) { toast(res.error ?? 'No se pudo agregar. Revisa tu selección.'); renderAll(); return; }
+    const kept = Object.keys(originals).length ? await saveDesigns(res.ref, originals) : true;
     const added = $('[data-added]');
     added.hidden = false;
     added.innerHTML = `
       <p><b>${res.qty} × KOVA CUSTOM ${esc(m.name)}</b> (${esc(color().name)}, talla ${esc(state.size)}) quedó en tu carrito${res.capped ? ` · máximo ${res.max} por pedido` : ''}.</p>
-      <p>Al finalizar el pedido se abre WhatsApp: ahí adjuntas ${modeZones(m).length > 1 ? 'los archivos del frente y de la espalda' : 'tu archivo original'}.</p>
+      <p>${Object.keys(originals).length && kept
+        ? `${Object.keys(originals).length > 1 ? 'Tus diseños se suben' : 'Tu diseño se sube'} de forma privada al registrar el pedido.${Object.keys(originals).length < modeZones(m).length ? ' El que falta lo subes desde la página de tu pedido.' : ''}`
+        : `Al registrar el pedido, sube ${modeZones(m).length > 1 ? 'los archivos del frente y de la espalda' : 'tu archivo original'} desde la página de tu pedido.`}</p>
       <div class="cx-added__actions">
         <button class="btn btn--light btn--sm" type="button" data-open-cart>Ver carrito y finalizar</button>
         <a class="btn btn--line btn--sm" href="index.html#catalogo">Seguir comprando</a>
@@ -716,6 +722,7 @@ function initStudio() {
   }
 
   renderAll();
+  pruneOldDesigns();
 }
 
 /* ---------- Utilidades ---------- */

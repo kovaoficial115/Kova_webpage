@@ -5,8 +5,8 @@
  * (tabla public.store_settings, fila 'custom'). Desde /admin → KOVA Custom se cambian precios,
  * modalidades, medidas y posición de las zonas, colores, tallas, inventario e imágenes.
  *
- * Los diseños de los clientes NO se suben a ningún servidor: la previsualización ocurre solo en el
- * navegador y los archivos originales se envían por WhatsApp.
+ * Los diseños de los clientes se previsualizan en el navegador y, al registrar el pedido, se suben al
+ * bucket PRIVADO custom-designs (ver supabase/migrations/20261126_06_disenos_custom.sql).
  *
  * Coordenadas de las zonas: porcentaje del lienzo de la camiseta (proporción 6:7).
  *   x  centro horizontal de la zona (0 = borde izquierdo, 100 = derecho)
