@@ -26,3 +26,13 @@ grant usage on schema storage to anon, authenticated;
 grant select, insert, update, delete on storage.objects to anon, authenticated;
 grant select on storage.buckets to anon, authenticated;
 grant usage on schema public to anon, authenticated;
+-- Simulación de la extensión http (Cloudflare Turnstile): token 'ok' pasa, 'caido' simula Cloudflare sin respuesta.
+create type extensions.http_response as (status integer, content_type varchar, headers text, content varchar);
+create or replace function extensions.urlencode(t text) returns text language sql immutable as $$ select t $$;
+create or replace function extensions.http_set_curlopt(k varchar, v varchar) returns boolean language sql as $$ select true $$;
+create or replace function extensions.http_post(uri varchar, content varchar, content_type varchar) returns extensions.http_response
+language plpgsql as $$
+begin
+  if content like '%response=caido%' then raise exception 'timeout'; end if;
+  return row(200, 'application/json', '', case when content like '%response=ok&%' or content like '%response=ok' then '{"success":true}' else '{"success":false}' end)::extensions.http_response;
+end $$;

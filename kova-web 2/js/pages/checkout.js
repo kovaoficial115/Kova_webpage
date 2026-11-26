@@ -19,6 +19,7 @@ import { paymentDetailHtml, dateText } from '../components/cartView.js';
 import { formatPrice } from '../utils/format.js';
 import { esc, toast } from '../utils/dom.js';
 import { rememberOrder } from '../services/orders.js';
+import { captchaToken, preloadCaptcha } from '../services/turnstile.js';
 
 const main = document.querySelector('main');
 const KEY_STORE = `${CONFIG.cart.storageKey}.checkoutKey`;
@@ -136,6 +137,7 @@ function render() {
             <button class="btn btn--primary btn--xl btn--block co-submit" type="submit" data-submit>
               <span data-submit-label>Registrar pedido</span> <i class="ico ico--destellos" aria-hidden="true"></i>
             </button>
+            <div class="co-captcha" data-captcha></div>
             <p class="co-state" data-state role="status"></p>
             <a class="btn btn--line btn--block cartpage__continue" href="carrito.html">Volver al carrito</a>
           </aside>
@@ -335,7 +337,20 @@ async function submit(form) {
   label.textContent = 'Registrando…';
   setState('Registrando tu pedido de forma segura…');
   const b = getBuyer();
+  let captcha = '';
+  try {
+    captcha = await captchaToken(form.querySelector('[data-captcha]'));
+  } catch (err) {
+    sending = false;
+    btn.disabled = false;
+    btn.classList.remove('is-loading');
+    label.textContent = prev;
+    setState(errorText(err), 'error');
+    toast(errorText(err));
+    return;
+  }
   const payload = {
+    captcha,
     idempotency_key: checkoutKey(),
     items: serverItems(),
     promo_code: promo.code || '',
@@ -378,6 +393,7 @@ async function submit(form) {
 
 mountLayout();
 render();
+preloadCaptcha();
 let lastSig = cartSignature();
 subscribe(() => {
   if (sending || cartSignature() === lastSig) return;

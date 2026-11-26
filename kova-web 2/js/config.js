@@ -64,6 +64,13 @@ export const CONFIG = {
 
   currency: { locale: 'es-CO', code: 'COP' },
 
+  // Verificador anti-bots del checkout (Cloudflare Turnstile → Widget en modo "Gestionado").
+  // La clave del SITIO es pública por diseño. La clave SECRETA NUNCA va aquí: se guarda en Supabase
+  // (ver supabase/migrations/20261126_07_antibots.sql). Vacío = verificador apagado.
+  turnstile: {
+    siteKey: '',
+  },
+
   // Base de datos del catálogo (Supabase). Con estos dos datos vacíos la tienda usa js/data/products.js.
   // Se copian de Supabase → Project Settings → API. La clave "anon"/"publishable" es PÚBLICA por diseño:
   // solo permite leer productos publicados; escribir exige iniciar sesión como administrador (ver README).

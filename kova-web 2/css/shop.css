@@ -125,6 +125,8 @@ a.card__add { text-decoration: none; }
 .co-check a { text-decoration: underline; text-underline-offset: 3px; }
 .co-legal .field__error { color: #ff7b85; }
 .co-submit.is-loading { pointer-events: none; opacity: .8; }
+.co-captcha { display: flex; justify-content: center; margin-top: 10px; }
+.co-captcha:empty { display: none; }
 .co-state { min-height: 1.3em; margin-top: 10px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
 .co-state.is-error { color: #ff7b85; }
 
