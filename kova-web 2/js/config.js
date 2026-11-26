@@ -68,7 +68,7 @@ export const CONFIG = {
   // La clave del SITIO es pública por diseño. La clave SECRETA NUNCA va aquí: se guarda en Supabase
   // (ver supabase/migrations/20261126_07_antibots.sql). Vacío = verificador apagado.
   turnstile: {
-    siteKey: '',
+    siteKey: '0x4AAAAAAGTpu2t930KJcHQI',
   },
 
   // Base de datos del catálogo (Supabase). Con estos dos datos vacíos la tienda usa js/data/products.js.
