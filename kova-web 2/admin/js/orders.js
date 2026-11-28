@@ -77,6 +77,7 @@ function draw(view, rows, total, toReview) {
         <option value="">Cambiar estado a…</option>${['confirmed', 'in_production', 'quality_check', 'packed', 'ready', 'shipped', 'delivered'].map((s) => `<option value="${s}">${esc(FULFILLMENT[s])}</option>`).join('')}</select></label>
       <button class="btn btn--primary btn--sm" type="button" data-bulk-apply>Aplicar</button>
       <button class="btn btn--line btn--sm" type="button" data-bulk-export>Exportar selección</button>
+      <button class="btn btn--danger btn--sm" type="button" data-bulk-delete>Borrar</button>
       <button class="adm-link" type="button" data-bulk-clear>Quitar selección</button>
     </div>
 
@@ -143,8 +144,50 @@ function draw(view, rows, total, toReview) {
       st.selected.clear(); renderOrders(view);
     } catch (err) { done(); toast(errText(err)); }
   });
+  bulk.querySelector('[data-bulk-delete]').addEventListener('click', async (e) => {
+    const picked = rows.filter((o) => st.selected.has(o.id));
+    const r = await deleteOrders(e.currentTarget, [...st.selected], picked);
+    if (r) { st.selected.clear(); renderOrders(view); }
+  });
   view.querySelector('[data-export]').addEventListener('click', (e) => exportOrders(e.currentTarget, null));
   bulk.querySelector('[data-bulk-export]').addEventListener('click', (e) => exportOrders(e.currentTarget, [...st.selected]));
+}
+
+/**
+ * Borra pedidos para siempre tras confirmar escribiendo BORRAR. El servidor exige rol owner/admin,
+ * devuelve stock y cupos, y entrega las rutas de comprobantes y diseños para borrarlos del almacenamiento.
+ * `known` son los pedidos visibles (para listar números y avisar de pagos); puede no incluir todos los ids.
+ */
+async function deleteOrders(btn, ids, known = []) {
+  if (!ids.length) return null;
+  const paid = known.filter((o) => o.paid_total - o.refunded_total > 0);
+  const shipped = known.filter((o) => ['shipped', 'delivered'].includes(o.fulfillment_status));
+  const list = known.length > 1 ? `<p>${known.slice(0, 12).map((o) => `<b>${esc(o.number)}</b>`).join(', ')}${ids.length > 12 ? ` y ${ids.length - 12} más` : ''}</p>` : '';
+  const v = await formDialog({
+    title: ids.length === 1 ? `Borrar ${known[0]?.number ?? 'pedido'}` : `Borrar ${ids.length} pedidos`, danger: true, confirm: 'Borrar para siempre',
+    body: `${list}<p>Se eliminan sus productos, pagos, comprobantes, diseños e historial. <b>No se puede deshacer.</b>
+      El stock reservado y los cupos de preventa vuelven a estar disponibles, y el uso del código promocional deja de contar.</p>
+      ${paid.length ? `<div class="adm-alert"><b>${paid.length} con dinero pagado</b> (${paid.map((o) => `${esc(o.number)}: ${money(o.paid_total - o.refunded_total)}`).join(', ')}). Esos pagos desaparecen de los reportes.</div>` : ''}
+      ${shipped.length ? `<div class="adm-alert"><b>${shipped.length} ya enviado(s) o entregado(s).</b> Su stock no se devuelve.</div>` : ''}
+      <p class="adm-muted">Si solo quieres anularlo y conservar el registro, usa «Cancelar pedido».</p>
+      ${fld('confirm', 'Escribe BORRAR para confirmar', { req: true, attrs: 'autocomplete="off"' })}`,
+    validate: (x) => (x.confirm.trim().toUpperCase() !== 'BORRAR' ? 'Escribe BORRAR para confirmar.' : ''),
+  });
+  if (!v) return null;
+  const done = setBusy(btn, 'Borrando…');
+  try {
+    const r = await rpc('admin_delete_orders', { p_orders: ids, p_confirm: v.confirm });
+    // Archivos: si falla, los pedidos ya quedaron borrados; solo quedan archivos huérfanos privados.
+    let filesFailed = 0;
+    for (const [bucket, paths] of Object.entries(r.files ?? {})) {
+      for (let i = 0; i < paths.length; i += 100) {
+        const { error } = await db().storage.from(bucket).remove(paths.slice(i, i + 100));
+        if (error) filesFailed += paths.slice(i, i + 100).length;
+      }
+    }
+    toast(`${r.deleted} pedido(s) borrado(s).${r.not_found ? ` ${r.not_found} ya no existía(n).` : ''}${filesFailed ? ` No se pudieron borrar ${filesFailed} archivo(s).` : ''}`);
+    return r;
+  } catch (err) { toast(errText(err)); return null; } finally { done(); }
 }
 
 async function exportOrders(btn, ids) {
@@ -259,7 +302,8 @@ function drawOrder(view, o, items, pays, hist, campaign, designs = []) {
     <a class="adm-crumb" href="#/pedidos">← Pedidos</a>
     ${head(`${KIND[o.kind] ?? o.kind}${campaign ? ` · ${campaign.name}` : ''}`, o.number, `
       <button class="btn btn--line btn--sm" type="button" data-print>Imprimir recibo</button>
-      ${!closed && !['shipped', 'delivered'].includes(o.fulfillment_status) ? '<button class="btn btn--danger btn--sm" type="button" data-cancel>Cancelar pedido</button>' : ''}`)}
+      ${!closed && !['shipped', 'delivered'].includes(o.fulfillment_status) ? '<button class="btn btn--danger btn--sm" type="button" data-cancel>Cancelar pedido</button>' : ''}
+      <button class="btn btn--line btn--sm adm-danger-text" type="button" data-delete>Borrar pedido</button>`)}
     <div class="adm-status-row">${pill(o.financial_status, FINANCIAL)} ${pill(o.fulfillment_status, FULFILLMENT)}
       <span class="adm-muted">Registrado ${esc(dt(o.created_at))}${o.hold_expires_at && o.fulfillment_status === 'pending_confirmation' ? ` · Reserva hasta ${esc(dt(o.hold_expires_at))}` : ''}</span></div>
 
@@ -433,6 +477,9 @@ function bindOrder(view, o, balance, net) {
       validate: (x) => (!x.reason.trim() ? 'Escribe el motivo.' : '') });
     if (!v) return;
     act(e.currentTarget, 'Cancelando…', () => rpc('admin_cancel_order', { p_order: o.id, p_reason: v.reason }), 'Pedido cancelado.');
+  });
+  view.querySelector('[data-delete]').addEventListener('click', async (e) => {
+    if (await deleteOrders(e.currentTarget, [o.id], [o])) { st.selected.delete(o.id); location.hash = '#/pedidos'; }
   });
   view.querySelectorAll('[data-ful]').forEach((b) => b.addEventListener('click', async () => {
     const s = b.dataset.ful;

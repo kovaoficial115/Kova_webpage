@@ -18,6 +18,7 @@
 @keyframes adm-spin { to { transform: rotate(360deg); } }
 
 .btn--danger { --btn-bg: var(--scarlet); --btn-fg: var(--white); --btn-line: var(--scarlet); --btn-hover-bg: var(--scarlet-deep); --btn-hover-fg: var(--white); }
+.btn.adm-danger-text { --btn-fg: var(--scarlet); --btn-line: var(--scarlet); --btn-hover-bg: var(--scarlet); --btn-hover-fg: var(--white); }
 
 .adm-link {
   display: inline-flex; align-items: center; gap: 6px;
@@ -344,7 +345,7 @@ select.field__input { appearance: none; padding-right: 40px; cursor: pointer;
 /* ---------- Diálogo de confirmación ---------- */
 .adm .toast { bottom: 88px; }
 
-.adm-dialog { width: min(480px, calc(100% - 32px)); padding: 0; border: 0; background: var(--arena); color: var(--navy); box-shadow: 0 30px 80px rgb(0 0 31 / .5); }
+.adm-dialog { width: min(480px, calc(100% - 32px)); margin: auto; padding: 0; border: 0; background: var(--arena); color: var(--navy); box-shadow: 0 30px 80px rgb(0 0 31 / .5); }
 .adm-dialog::backdrop { background: rgb(0 0 31 / .7); backdrop-filter: blur(2px); }
 .adm-dialog__box { --bg: var(--arena); --fg: var(--navy); --muted: rgb(0 0 31 / .7); --line: rgb(0 0 31 / .14); --line-strong: rgb(0 0 31 / .6); padding: 26px; border-top: 5px solid var(--scarlet); }
 .adm-dialog__title { font-size: 34px; margin-bottom: 14px; }
