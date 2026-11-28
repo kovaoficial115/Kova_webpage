@@ -363,4 +363,52 @@ select t.fails(format($$select public.create_order(jsonb_set(t.order_payload(t.c
 reset role;
 delete from kova_private.secrets where name = 'turnstile_secret';
 select t.ok((select (value ->> 'max_orders_per_hour_per_person')::int = 3 from public.admin_settings where key = 'general'), 'límite: 3 por hora por defecto');
+
+-- ============ Borrar pedidos (migración 09) ============
+delete from public.rate_limits;
+update public.product_variants set stock_on_hand = 10, stock_reserved = 0 where product_id = 'tee-normal';
+insert into public.promo_codes (code, discount_type, percent, status) values ('BORRA5', 'percent', 5, 'active');
+select t.as_anon();
+select set_config('t.del1', public.create_order(t.order_payload(t.cart('tee-normal', 'M', '', 2), 'k-ffffffffffffffff1', 'BORRA5', 'full', 'del1@test.co')) ->> 'number', false);
+select set_config('t.del2', public.create_order(t.order_payload(t.cart('tee-normal', 'M', '', 3), 'k-ffffffffffffffff2', '', 'full', 'del2@test.co')) ->> 'number', false);
+reset role;
+select t.ok((select stock_reserved = 5 from public.product_variants where product_id = 'tee-normal'), 'borrar: 5 unidades reservadas por dos pedidos');
+insert into public.payments (order_id, kind, method, amount, status, source, proof_path)
+values (t.oid(current_setting('t.del1')), 'full', 'nu', 1000, 'submitted', 'customer', 'prueba/comprobante-del1.jpg');
+insert into public.order_design_files (order_id, line_no, face, path, file_name)
+values (t.oid(current_setting('t.del1')), 1, 'front', 'prueba/diseno-del1.png', 'diseno.png');
+set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000a1');
+select public.admin_add_payment(t.oid(current_setting('t.del2')), jsonb_build_object('kind', 'full', 'amount', (select total from public.orders where number = current_setting('t.del2')), 'method', 'nu', 'reference', 'DEL2'));
+reset role;
+select t.ok((select stock_on_hand = 7 and stock_reserved = 2 from public.product_variants where product_id = 'tee-normal'), 'borrar: pedido 2 pagado y confirmado descuenta stock');
+
+select t.as_anon();
+select t.fails(format($$select public.admin_delete_orders(array[%L]::uuid[], 'BORRAR')$$, t.oid(current_setting('t.del1'))), 'permission denied', 'borrar: anon no puede borrar pedidos');
+reset role;
+set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000b2');
+select t.fails(format($$select public.admin_delete_orders(array[%L]::uuid[], 'BORRAR')$$, t.oid(current_setting('t.del1'))), 'permiso', 'borrar: rol producción no puede borrar pedidos');
+select t.as_user('00000000-0000-0000-0000-0000000000c3');
+select t.fails(format($$select public.admin_delete_orders(array[%L]::uuid[], 'BORRAR')$$, t.oid(current_setting('t.del1'))), 'permiso', 'borrar: usuario sin rol no puede borrar pedidos');
+select t.fails($$delete from public.orders$$, 'permission denied', 'borrar: nadie borra la tabla directamente');
+select t.as_user('00000000-0000-0000-0000-0000000000a1');
+select t.fails(format($$select public.admin_delete_orders(array[%L]::uuid[], 'si')$$, t.oid(current_setting('t.del1'))), 'BORRAR', 'borrar: exige escribir BORRAR');
+select t.fails($$select public.admin_delete_orders(array[]::uuid[], 'BORRAR')$$, 'No elegiste', 'borrar: lista vacía rechazada');
+reset role;
+select set_config('t.del1id', t.oid(current_setting('t.del1'))::text, false);
+select set_config('t.del2id', t.oid(current_setting('t.del2'))::text, false);
+set role authenticated; select t.as_user('00000000-0000-0000-0000-0000000000a1');
+select set_config('t.delres', public.admin_delete_orders(array[current_setting('t.del1id'), current_setting('t.del2id'), gen_random_uuid()::text]::uuid[], 'borrar')::text, false);
+reset role;
+select t.ok((current_setting('t.delres')::jsonb ->> 'deleted')::int = 2 and (current_setting('t.delres')::jsonb ->> 'not_found')::int = 1, 'borrar: borra 2 y reporta 1 inexistente');
+select t.ok(current_setting('t.delres')::jsonb #> '{files,payment-proofs}' ? 'prueba/comprobante-del1.jpg', 'borrar: devuelve el comprobante para borrarlo del almacenamiento');
+select t.ok(current_setting('t.delres')::jsonb #> '{files,custom-designs}' ? 'prueba/diseno-del1.png', 'borrar: devuelve el diseño para borrarlo del almacenamiento');
+select t.ok((select count(*) from public.orders where id in (current_setting('t.del1id')::uuid, current_setting('t.del2id')::uuid)) = 0, 'borrar: los pedidos ya no existen');
+select t.ok((select count(*) from public.order_items where order_id in (current_setting('t.del1id')::uuid, current_setting('t.del2id')::uuid)) = 0
+  and (select count(*) from public.payments where order_id in (current_setting('t.del1id')::uuid, current_setting('t.del2id')::uuid)) = 0
+  and (select count(*) from public.order_history where order_id in (current_setting('t.del1id')::uuid, current_setting('t.del2id')::uuid)) = 0
+  and (select count(*) from public.order_design_files where order_id = current_setting('t.del1id')::uuid) = 0, 'borrar: sin productos, pagos, historial ni diseños huérfanos');
+select t.ok((select stock_on_hand = 10 and stock_reserved = 0 from public.product_variants where product_id = 'tee-normal'), 'borrar: vuelven el stock reservado y el vendido');
+select t.ok((select count(*) from public.promo_redemptions r join public.promo_codes pc on pc.id = r.promo_id where pc.code_norm = 'BORRA5') = 0, 'borrar: el uso del código deja de contar');
+select t.ok((select count(*) from public.inventory_movements where order_id is null and note like '%' || current_setting('t.del2') || ' eliminado') >= 2, 'borrar: movimientos de inventario se conservan sin enlace');
+select t.ok((select count(*) from public.audit_logs where action = 'delete' and entity = 'orders' and details #>> '{order,number}' in (current_setting('t.del1'), current_setting('t.del2'))) = 2, 'borrar: copia del pedido en auditoría');
 select 'TODAS LAS PRUEBAS PASARON' as resultado;

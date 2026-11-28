@@ -186,6 +186,19 @@ const server = http.createServer(async (req, res) => {
       const type = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', pdf: 'application/pdf' }[file.split('.').pop()] ?? 'application/octet-stream';
       res.writeHead(200, { ...cors, 'Content-Type': type }); return res.end(fs.readFileSync(file));
     }
+    // Borrar varios archivos (supabase-js storage.remove): DELETE /object/<bucket> con { prefixes }.
+    m = url.pathname.match(/^\/storage\/v1\/object\/([^/]+)\/?$/);
+    if (m && req.method === 'DELETE') {
+      const bucket = m[1]; const names = JSON.parse(raw.toString() || '{}').prefixes ?? [];
+      const removed = [];
+      for (const name of names) {
+        try {
+          const n = sql(`with d as (delete from storage.objects where bucket_id = ${q(bucket)} and name = ${q(name)} returning 1) select count(*) from d`, { ...who, headers });
+          if (n === '1') { removed.push({ name, bucket_id: bucket }); fs.rmSync(path.join(FILES, bucket, name), { force: true }); }
+        } catch { /* sin permiso: no se borra */ }
+      }
+      return send(res, 200, removed);
+    }
     m = url.pathname.match(/^\/storage\/v1\/object\/([^/]+)\/(.+)$/);
     if (m && (req.method === 'POST' || req.method === 'PUT')) {
       const [, bucket, p] = m; const name = decodeURIComponent(p);

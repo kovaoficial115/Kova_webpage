@@ -248,6 +248,35 @@ await p2.reload();
 await p2.waitForSelector('[data-view] [data-design]', { timeout: 10000 });
 ok((await p2.$$('[data-view] [data-design]')).length === 2, 'rol producción: descarga los diseños del pedido confirmado');
 
+// Borrar pedidos (owner): selección múltiple con confirmación escrita, y desde el detalle
+const psql = (c) => spawnSync('psql', ['-h', '/tmp', '-p', '5433', '-U', 'postgres', '-d', 'kova', '-tAc', c], { encoding: 'utf8' }).stdout.trim();
+const designsBefore = Number(psql("select count(*) from storage.objects where bucket_id = 'custom-designs'"));
+await page.goto(`${SITE}/admin/index.html#/pedidos`);
+await waitView(page, '.adm-orders');
+const webId = psql("select id from public.orders where number = 'KOVA-WEB-000001'");
+await page.check(`[data-sel="${webId}"]`);
+ok(await page.isVisible('[data-bulk-delete]'), 'borrar: botón Borrar aparece al seleccionar');
+await page.click('[data-bulk-delete]');
+await page.waitForSelector('#dialog[open]');
+ok(/KOVA-WEB-000001/.test(await page.textContent('#dialog')) && /No se puede deshacer/.test(await page.textContent('#dialog')), 'borrar: el diálogo lista el pedido y advierte');
+await page.screenshot({ path: `${SHOTS}/18-admin-borrar-dialogo.png` });
+await page.fill('#dialog [name="confirm"]', 'si');
+await page.click('#dialog [value="ok"]');
+ok(/Escribe BORRAR/.test(await page.textContent('#dialog [data-dmsg]')), 'borrar: sin escribir BORRAR no borra');
+await page.fill('#dialog [name="confirm"]', 'BORRAR');
+await page.click('#dialog [value="ok"]');
+await page.waitForFunction(() => !/KOVA-WEB-000001/.test(document.querySelector('[data-view]')?.textContent ?? ''), null, { timeout: 10000 });
+ok(psql("select count(*) from public.orders where number = 'KOVA-WEB-000001'") === '0', 'borrar: el pedido desaparece de la base');
+ok(Number(psql("select count(*) from storage.objects where bucket_id = 'custom-designs'")) < designsBefore, 'borrar: también se borran sus diseños del almacenamiento');
+await page.click('a.adm-strong >> text=KOVA-PSY-000001');
+await waitView(page, '.adm-detail');
+await page.click('[data-delete]');
+await dialogFill(page, { confirm: 'borrar' });
+await page.waitForFunction(() => location.hash === '#/pedidos', null, { timeout: 10000 });
+ok(psql("select count(*) from public.orders where number = 'KOVA-PSY-000001'") === '0', 'borrar: desde el detalle del pedido');
+ok(psql("select count(*) from storage.objects where bucket_id = 'payment-proofs'") === '0', 'borrar: también se borra el comprobante');
+ok(psql("select count(*) from public.audit_logs where action = 'delete' and entity = 'orders'") === '2', 'borrar: queda registro en auditoría');
+
 ok(page.errors.length === 0, `sin errores JS (owner) ${page.errors.join(' | ')}`);
 ok(m.errors.length === 0, `sin errores JS (móvil) ${m.errors.join(' | ')}`);
 ok(p2.errors.length === 0, `sin errores JS (producción) ${p2.errors.join(' | ')}`);
